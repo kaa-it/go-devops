@@ -31,3 +31,31 @@ func (s *Storage) UpdateCounter(name string, value int64) {
 
 	s.counters[name] += value
 }
+
+func (s *Storage) ForEachGauge(fn func(key string, value float64)) {
+	s.mu.Lock()
+
+	for key, value := range s.gauges {
+		s.mu.Unlock()
+
+		fn(key, value)
+
+		s.mu.Lock()
+	}
+
+	s.mu.Unlock()
+}
+
+func (s *Storage) ForEachCounter(fn func(key string, value int64)) {
+	s.mu.Lock()
+
+	for key, value := range s.counters {
+		s.mu.Unlock()
+
+		fn(key, value)
+
+		s.mu.Lock()
+	}
+
+	s.mu.Unlock()
+}
