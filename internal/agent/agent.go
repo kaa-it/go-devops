@@ -3,7 +3,6 @@ package agent
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -157,16 +156,16 @@ func (a *Agent) sendMetric(url string) error {
 	request.Header.Set("Content-Length", "0")
 
 	resp, err := a.client.Do(request)
+
 	if err != nil {
 		return fmt.Errorf("failed to send request for %s: %w", url, err)
 	}
 
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
 			log.Printf("failed to close body: %v", err)
 		}
-	}(resp.Body)
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("received status code %d for %s", resp.StatusCode, url)
