@@ -3,8 +3,7 @@ package agent
 import "os"
 
 type ServerConfig struct {
-	Host string
-	Port string
+	Address string
 }
 
 type Config struct {
@@ -14,8 +13,7 @@ type Config struct {
 func NewConfig() *Config {
 	return &Config{
 		Server: ServerConfig{
-			Host: getEnv("SERVER_HOST", "127.0.0.1"),
-			Port: getEnv("SERVER_PORT", "8080"),
+			Address: getEnv("ADDRESS", "127.0.0.1:8080"),
 		},
 	}
 }

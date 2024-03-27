@@ -4,7 +4,6 @@
 
 ## Переменные среды 
 
-| Name          | Description                  | Default Value |
-|---------------|------------------------------|---------------|
-| `SERVER_HOST` | IP or DNS for metrics server | `127.0.0.1`   |
-| `SERVER_PORT` | Port for metrics server      | `8080`        |
+| Name             | Description                     | Default Value    |
+|------------------|---------------------------------|------------------|
+| `SERVER_ADDERSS` | Base address for metrics server | `127.0.0.1:8080` |

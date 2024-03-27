@@ -59,3 +59,11 @@ func (s *Storage) ForEachCounter(fn func(key string, value int64)) {
 
 	s.mu.Unlock()
 }
+
+func (s *Storage) TotalGauges() int {
+	return len(s.gauges)
+}
+
+func (s *Storage) TotalCounters() int {
+	return len(s.counters)
+}

@@ -27,11 +27,11 @@ type Agent struct {
 	client  *http.Client
 }
 
-func New(config *Config) *Agent {
+func New(client *http.Client, config *Config) *Agent {
 	return &Agent{
 		storage: NewStorage(),
 		config:  config,
-		client:  &http.Client{},
+		client:  client,
 	}
 }
 
@@ -178,9 +178,8 @@ func (a *Agent) sendGauge(name string, value float64) error {
 	strVal := strconv.FormatFloat(value, 'f', 4, 64)
 
 	url := fmt.Sprintf(
-		"http://%s:%s/update/%s/%s/%s",
-		a.config.Server.Host,
-		a.config.Server.Port,
+		"http://%s/update/%s/%s/%s",
+		a.config.Server.Address,
 		"gauge",
 		name,
 		strVal,
@@ -193,9 +192,8 @@ func (a *Agent) sendCounter(name string, value int64) error {
 	strVal := strconv.FormatInt(value, 10)
 
 	url := fmt.Sprintf(
-		"http://%s:%s/update/%s/%s/%s",
-		a.config.Server.Host,
-		a.config.Server.Port,
+		"http://%s/update/%s/%s/%s",
+		a.config.Server.Address,
 		"counter",
 		name,
 		strVal,
