@@ -26,27 +26,14 @@ func (h *Handler) Route() *http.ServeMux {
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	category := r.PathValue("category")
 
-	if category == "" {
-		http.Error(w, "Metric type not found", http.StatusBadRequest)
-		return
-	}
-
 	if category != "gauge" && category != "counter" {
 		http.Error(w, "Metric type is not supported", http.StatusNotImplemented)
 		return
 	}
 
 	name := r.PathValue("name")
-	if name == "" {
-		http.Error(w, "Metric name not found", http.StatusNotFound)
-		return
-	}
 
 	valueStr := r.PathValue("value")
-	if valueStr == "" {
-		http.Error(w, "Metric value not found", http.StatusNotFound)
-		return
-	}
 
 	switch category {
 	case "gauge":
