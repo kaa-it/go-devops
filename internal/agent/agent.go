@@ -13,6 +13,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/go-resty/resty/v2"
 )
 
 const (
@@ -24,10 +26,12 @@ const (
 type Agent struct {
 	storage *Storage
 	config  *Config
-	client  *http.Client
+	client  *resty.Client
 }
 
-func New(client *http.Client, config *Config) *Agent {
+func New(client *resty.Client, config *Config) *Agent {
+	client.SetTimeout(_requestTimeout)
+
 	return &Agent{
 		storage: NewStorage(),
 		config:  config,
@@ -144,31 +148,20 @@ func (a *Agent) report() {
 }
 
 func (a *Agent) sendMetric(url string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), _requestTimeout)
-	defer cancel()
+	req := a.client.R()
+	req.Method = http.MethodPost
+	req.URL = url
 
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
-	if err != nil {
-		return fmt.Errorf("can not create request for %s: %w", url, err)
-	}
+	req.Header.Set("Content-Type", "text/plain")
+	req.Header.Set("Content-Length", "0")
 
-	request.Header.Set("Content-Type", "text/plain")
-	request.Header.Set("Content-Length", "0")
-
-	resp, err := a.client.Do(request)
-
+	resp, err := req.Send()
 	if err != nil {
 		return fmt.Errorf("failed to send request for %s: %w", url, err)
 	}
 
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			log.Printf("failed to close body: %v", err)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("received status code %d for %s", resp.StatusCode, url)
+	if resp.StatusCode() != http.StatusOK {
+		return fmt.Errorf("received status code %d for %s", resp.StatusCode(), url)
 	}
 
 	return nil

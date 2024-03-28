@@ -2,15 +2,13 @@ package rest
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
 
+	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/stretchr/testify/mock"
 )
 
@@ -31,6 +29,7 @@ func TestUpdateHandler(t *testing.T) {
 		code     int
 		response string
 	}
+
 	tests := []struct {
 		name             string
 		metricType       string
@@ -40,7 +39,18 @@ func TestUpdateHandler(t *testing.T) {
 		want             want
 	}{
 		{
-			name:             "success case",
+			name:             "success counter case",
+			metricType:       "counter",
+			metricName:       "test",
+			metricValue:      "45",
+			checkServiceCall: true,
+			want: want{
+				code:     http.StatusOK,
+				response: "",
+			},
+		},
+		{
+			name:             "success gauge case",
 			metricType:       "gauge",
 			metricName:       "test",
 			metricValue:      "4.5",
@@ -84,29 +94,29 @@ func TestUpdateHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			url := fmt.Sprintf("/update/%s/%s/%s", test.metricType, test.metricName, test.metricValue)
-			request := httptest.NewRequest(http.MethodPost, url, nil)
-
-			w := httptest.NewRecorder()
-
 			s := &fakeUpdateService{}
-
 			s.On("UpdateGauge", mock.Anything, mock.Anything).Return()
+			s.On("UpdateCounter", mock.Anything, mock.Anything).Return()
 
 			h := NewHandler(s)
 
-			h.Route().ServeHTTP(w, request)
+			srv := httptest.NewServer(h.Route())
 
-			res := w.Result()
+			defer srv.Close()
 
-			assert.Equal(t, test.want.code, res.StatusCode)
+			url := fmt.Sprintf("%s/update/%s/%s/%s", srv.URL, test.metricType, test.metricName, test.metricValue)
+
+			req := resty.New().R()
+			req.Method = http.MethodPost
+			req.URL = url
+
+			resp, err := req.Send()
+
+			assert.NoError(t, err, "error making HTTP request")
+			assert.Equal(t, test.want.code, resp.StatusCode())
 
 			if test.want.response != "" {
-				defer func() { _ = res.Body.Close() }()
-				resBody, err := io.ReadAll(res.Body)
-
-				require.NoError(t, err)
-				assert.Equal(t, test.want.response, string(resBody))
+				assert.Equal(t, test.want.response, string(resp.Body()))
 			}
 
 			if test.checkServiceCall {
@@ -114,9 +124,11 @@ func TestUpdateHandler(t *testing.T) {
 				case "gauge":
 					value, _ := strconv.ParseFloat(test.metricValue, 64)
 					s.AssertCalled(t, "UpdateGauge", test.metricName, value)
+					s.AssertNumberOfCalls(t, "UpdateGauge", 1)
 				case "counter":
 					value, _ := strconv.ParseInt(test.metricValue, 10, 64)
 					s.AssertCalled(t, "UpdateCounter", test.metricName, value)
+					s.AssertNumberOfCalls(t, "UpdateCounter", 1)
 				}
 			}
 		})

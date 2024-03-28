@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-resty/resty/v2"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,7 +27,9 @@ func TestAgent(t *testing.T) {
 	config := NewConfig()
 	config.Server.Address = strings.Split(server.URL, "//")[1]
 
-	agent := New(server.Client(), config)
+	client := resty.NewWithClient(server.Client())
+
+	agent := New(client, config)
 
 	agent.poll()
 

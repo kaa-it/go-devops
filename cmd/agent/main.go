@@ -1,8 +1,7 @@
 package main
 
 import (
-	"net/http"
-
+	"github.com/go-resty/resty/v2"
 	"github.com/joho/godotenv"
 	"github.com/kaa-it/go-devops/internal/agent"
 )
@@ -11,7 +10,7 @@ func main() {
 	_ = godotenv.Load()
 
 	config := agent.NewConfig()
-	client := &http.Client{}
+	client := resty.New()
 
 	metricsAgent := agent.New(client, config)
 
