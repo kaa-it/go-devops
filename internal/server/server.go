@@ -18,10 +18,14 @@ import (
 	"github.com/kaa-it/go-devops/internal/server/updating"
 )
 
-type Server struct{}
+type Server struct {
+	address string
+}
 
-func New() *Server {
-	return &Server{}
+func New(address string) *Server {
+	return &Server{
+		address: address,
+	}
 }
 
 func (s *Server) Run() {
@@ -44,7 +48,7 @@ func (s *Server) Run() {
 	r.Mount("/", viewingHandler.Route())
 
 	server := &http.Server{
-		Addr:    ":8080",
+		Addr:    s.address,
 		Handler: r,
 	}
 
