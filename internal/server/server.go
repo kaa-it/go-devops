@@ -8,7 +8,12 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/kaa-it/go-devops/internal/server/viewing"
+
 	"github.com/kaa-it/go-devops/internal/server/http/rest"
+
+	"github.com/go-chi/chi/v5"
+
 	"github.com/kaa-it/go-devops/internal/server/storage/memory"
 	"github.com/kaa-it/go-devops/internal/server/updating"
 )
@@ -20,20 +25,27 @@ func New() *Server {
 }
 
 func (s *Server) Run() {
-	storage := memory.NewStorage()
-
-	updater := updating.NewService(storage)
-
-	handler := rest.NewHandler(updater)
-
 	log.Println("Server started")
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 
+	storage := memory.NewStorage()
+
+	updater := updating.NewService(storage)
+	viewer := viewing.NewService(storage)
+
+	updatingHandler := rest.NewUpdatingHandler(updater)
+	viewingHandler := rest.NewViewingHandler(viewer)
+
+	r := chi.NewRouter()
+
+	r.Mount("/update", updatingHandler.Route())
+	r.Mount("/", viewingHandler.Route())
+
 	server := &http.Server{
 		Addr:    ":8080",
-		Handler: handler.Route(),
+		Handler: r,
 	}
 
 	go func() {

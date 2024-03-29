@@ -4,36 +4,37 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/kaa-it/go-devops/internal/server/updating"
 )
 
-type Handler struct {
+type UpdatingHandler struct {
 	a updating.Service
 }
 
-func NewHandler(a updating.Service) *Handler {
-	return &Handler{a}
+func NewUpdatingHandler(a updating.Service) *UpdatingHandler {
+	return &UpdatingHandler{a}
 }
 
-func (h *Handler) Route() *http.ServeMux {
-	mux := http.NewServeMux()
+func (h *UpdatingHandler) Route() *chi.Mux {
+	mux := chi.NewRouter()
 
-	mux.HandleFunc("/update/{category}/{name}/{value}", h.update)
+	mux.Post("/{category}/{name}/{value}", h.update)
 
 	return mux
 }
 
-func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
-	category := r.PathValue("category")
+func (h *UpdatingHandler) update(w http.ResponseWriter, r *http.Request) {
+	category := chi.URLParam(r, "category")
 
 	if category != "gauge" && category != "counter" {
 		http.Error(w, "Metric type is not supported", http.StatusNotImplemented)
 		return
 	}
 
-	name := r.PathValue("name")
+	name := chi.URLParam(r, "name")
 
-	valueStr := r.PathValue("value")
+	valueStr := chi.URLParam(r, "value")
 
 	switch category {
 	case "gauge":

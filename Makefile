@@ -8,3 +8,6 @@ test:
 	devopstest -test.v -test.run=^TestIteration2[b]*$$ \
                 -source-path=. \
                 -binary-path=./server
+	devopstest -test.v -test.run=^TestIteration3[b]*$ \
+                -source-path=. \
+                -binary-path=./server

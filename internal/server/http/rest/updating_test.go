@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -98,9 +100,12 @@ func TestUpdateHandler(t *testing.T) {
 			s.On("UpdateGauge", mock.Anything, mock.Anything).Return()
 			s.On("UpdateCounter", mock.Anything, mock.Anything).Return()
 
-			h := NewHandler(s)
+			h := NewUpdatingHandler(s)
 
-			srv := httptest.NewServer(h.Route())
+			r := chi.NewRouter()
+			r.Mount("/update", h.Route())
+
+			srv := httptest.NewServer(r)
 
 			defer srv.Close()
 
