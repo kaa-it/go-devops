@@ -27,7 +27,7 @@ func (h *ViewingHandler) Route() *chi.Mux {
 	return mux
 }
 
-func (h *ViewingHandler) home(w http.ResponseWriter, r *http.Request) {
+func (h *ViewingHandler) home(w http.ResponseWriter, _ *http.Request) {
 	const templ = `
 		<table style='
 			border-collapse: collapse;
@@ -139,7 +139,8 @@ func (h *ViewingHandler) value(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		str := strconv.FormatFloat(value, 'f', 3, 64)
+		str := strconv.FormatFloat(value, 'f', -1, 64)
+		//str := fmt.Sprintf("%f", value)
 
 		w.Header().Set("Content-Type", "text/plain;charset=utf-8")
 		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(str)), 10))

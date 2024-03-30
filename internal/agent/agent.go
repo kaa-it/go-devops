@@ -18,8 +18,6 @@ import (
 )
 
 const (
-	_pollInterval   = 2 * time.Second
-	_reportInterval = 10 * time.Second
 	_requestTimeout = 5 * time.Second
 )
 
@@ -63,7 +61,7 @@ func (a *Agent) Run() {
 }
 
 func (a *Agent) runPoller(ctx context.Context, wg *sync.WaitGroup) {
-	pollTicker := time.NewTicker(_pollInterval)
+	pollTicker := time.NewTicker(a.config.Agent.PollInterval)
 
 	for {
 		select {
@@ -78,7 +76,7 @@ func (a *Agent) runPoller(ctx context.Context, wg *sync.WaitGroup) {
 }
 
 func (a *Agent) runReporter(ctx context.Context, wg *sync.WaitGroup) {
-	reportTicker := time.NewTicker(_reportInterval)
+	reportTicker := time.NewTicker(a.config.Agent.ReportInterval)
 
 	for {
 		select {

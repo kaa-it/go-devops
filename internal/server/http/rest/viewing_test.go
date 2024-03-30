@@ -69,10 +69,10 @@ func TestViewHandler(t *testing.T) {
 			name:        "success gauge case",
 			metricType:  "gauge",
 			metricName:  "test",
-			metricValue: "4.500",
+			metricValue: "4.5",
 			want: want{
 				code:     http.StatusOK,
-				response: "4.500",
+				response: "4.5",
 			},
 		},
 		{

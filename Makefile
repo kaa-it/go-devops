@@ -4,14 +4,20 @@ build:
 
 test:
 	go vet --vettool=$(which statictest) ./...
-	devopstest -test.v -test.run=^TestIteration1$$ -agent-binary-path=./agent
-	devopstest -test.v -test.run=^TestIteration2[b]*$$ \
-                -source-path=. \
+	metricstest -test.v -test.run=^TestIteration1$$ \
                 -binary-path=./server
-	devopstest -test.v -test.run=^TestIteration3[b]*$$ \
+	metricstest -test.v -test.run=^TestIteration2[AB]*$$ \
                 -source-path=. \
-                -binary-path=./server
-	devopstest -test.v -test.run=^TestIteration4$$ \
-                -source-path=. \
-                -binary-path=./server \
                 -agent-binary-path=./agent
+	metricstest -test.v -test.run=^TestIteration3[AB]*$$ \
+                -source-path=. \
+                -agent-binary-path=./agent \
+                -binary-path=./server
+	export SERVER_PORT=9090 && \
+    export ADDRESS="localhost:9090" && \
+    export TEMP_FILE=test && \
+	metricstest -test.v -test.run=^TestIteration4$ \
+		-agent-binary-path=./agent \
+		-binary-path=./server \
+		-server-port=9090 \
+		-source-path=.
