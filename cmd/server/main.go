@@ -1,17 +1,17 @@
 package main
 
 import (
-	"flag"
+	"github.com/joho/godotenv"
 
 	"github.com/kaa-it/go-devops/internal/server"
 )
 
 func main() {
-	address := flag.String("a", ":8080", "server address as \"host:port\"")
+	_ = godotenv.Load()
 
-	flag.Parse()
+	config := server.NewConfig()
 
-	s := server.New(*address)
+	s := server.New(config)
 
 	s.Run()
 }

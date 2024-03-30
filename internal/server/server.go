@@ -19,12 +19,12 @@ import (
 )
 
 type Server struct {
-	address string
+	config *Config
 }
 
-func New(address string) *Server {
+func New(config *Config) *Server {
 	return &Server{
-		address: address,
+		config: config,
 	}
 }
 
@@ -48,7 +48,7 @@ func (s *Server) Run() {
 	r.Mount("/", viewingHandler.Route())
 
 	server := &http.Server{
-		Addr:    s.address,
+		Addr:    s.config.Server.Address,
 		Handler: r,
 	}
 

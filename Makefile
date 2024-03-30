@@ -16,8 +16,16 @@ test:
 	export SERVER_PORT=9090 && \
     export ADDRESS="localhost:9090" && \
     export TEMP_FILE=test && \
-	metricstest -test.v -test.run=^TestIteration4$ \
+	metricstest -test.v -test.run=^TestIteration4$$ \
 		-agent-binary-path=./agent \
 		-binary-path=./server \
 		-server-port=9090 \
 		-source-path=.
+	export SERVER_PORT=9090 && \
+    export ADDRESS="localhost:9090" && \
+    export TEMP_FILE=test && \
+    metricstest -test.v -test.run=^TestIteration5$$ \
+	  -agent-binary-path=./agent \
+	  -binary-path=./server \
+	  -server-port=9090 \
+	  -source-path=.
