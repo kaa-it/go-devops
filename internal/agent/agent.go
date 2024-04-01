@@ -62,6 +62,7 @@ func (a *Agent) Run() {
 
 func (a *Agent) runPoller(ctx context.Context, wg *sync.WaitGroup) {
 	pollTicker := time.NewTicker(a.config.Agent.PollInterval)
+	defer pollTicker.Stop()
 
 	for {
 		select {
@@ -77,6 +78,7 @@ func (a *Agent) runPoller(ctx context.Context, wg *sync.WaitGroup) {
 
 func (a *Agent) runReporter(ctx context.Context, wg *sync.WaitGroup) {
 	reportTicker := time.NewTicker(a.config.Agent.ReportInterval)
+	defer reportTicker.Stop()
 
 	for {
 		select {
@@ -140,6 +142,10 @@ func (a *Agent) report() {
 		if err := a.sendCounter(key, value); err != nil {
 			log.Println(err)
 		}
+
+		// Subtract sent value to take into account
+		// possible counter updates after sending
+		a.storage.UpdateCounter(key, -value)
 	})
 
 	log.Println("Report done")

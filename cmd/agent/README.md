@@ -6,4 +6,4 @@
 
 | Name             | Description                     | Default Value    |
 |------------------|---------------------------------|------------------|
-| `SERVER_ADDERSS` | Base address for metrics server | `127.0.0.1:8080` |
+| `SERVER_ADDRESS` | Base address for metrics server | `127.0.0.1:8080` |

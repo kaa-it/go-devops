@@ -42,30 +42,20 @@ func (s *Storage) UpdateCounter(name string, value int64) {
 
 func (s *Storage) ForEachGauge(fn func(key string, value float64)) {
 	s.mu.RLock()
+	defer s.mu.RUnlock()
 
 	for key, value := range s.gauges {
-		s.mu.RUnlock()
-
 		fn(key, value)
-
-		s.mu.RLock()
 	}
-
-	s.mu.RUnlock()
 }
 
 func (s *Storage) ForEachCounter(fn func(key string, value int64)) {
 	s.mu.RLock()
+	defer s.mu.RUnlock()
 
 	for key, value := range s.counters {
-		s.mu.RUnlock()
-
 		fn(key, value)
-
-		s.mu.RLock()
 	}
-
-	s.mu.RUnlock()
 }
 
 func (s *Storage) Gauge(name string) (float64, error) {

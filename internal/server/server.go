@@ -61,6 +61,6 @@ func (s *Server) Run() {
 
 	err := server.ListenAndServe()
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	}
 }
