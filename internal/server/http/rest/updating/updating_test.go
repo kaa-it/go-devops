@@ -1,4 +1,4 @@
-package rest
+package updating
 
 import (
 	"fmt"
@@ -24,6 +24,16 @@ func (s *fakeUpdateService) UpdateGauge(name string, value float64) {
 
 func (s *fakeUpdateService) UpdateCounter(name string, value int64) {
 	_ = s.Called(name, value)
+}
+
+type fakeLogger struct {
+	mock.Mock
+	h http.HandlerFunc
+}
+
+func (l *fakeLogger) RequestLogger(h http.HandlerFunc) http.HandlerFunc {
+	args := l.Called(h)
+	return args.Get(0).(func(w http.ResponseWriter, r *http.Request))
 }
 
 func TestUpdateHandler(t *testing.T) {
@@ -100,7 +110,14 @@ func TestUpdateHandler(t *testing.T) {
 			s.On("UpdateGauge", mock.Anything, mock.Anything).Return()
 			s.On("UpdateCounter", mock.Anything, mock.Anything).Return()
 
-			h := NewUpdatingHandler(s)
+			l := &fakeLogger{}
+			l.On("RequestLogger", mock.Anything).Return(func(w http.ResponseWriter, r *http.Request) {
+				l.h.ServeHTTP(w, r)
+			})
+
+			h := NewHandler(s, l)
+
+			l.h = h.update
 
 			r := chi.NewRouter()
 			r.Mount("/update", h.Route())
@@ -123,6 +140,8 @@ func TestUpdateHandler(t *testing.T) {
 			if test.want.response != "" {
 				assert.Equal(t, test.want.response, string(resp.Body()))
 			}
+
+			l.AssertNumberOfCalls(t, "RequestLogger", 1)
 
 			if test.checkServiceCall {
 				switch test.metricType {

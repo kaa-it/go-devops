@@ -7,10 +7,12 @@ import (
 
 const (
 	_serverAddress = ":8080"
+	_logLevel      = "info"
 )
 
 type SelfConfig struct {
-	Address string
+	Address  string
+	LogLevel string
 }
 
 type Config struct {
@@ -24,11 +26,18 @@ func NewConfig() *Config {
 		"server address as \"host:port\"",
 	)
 
+	logLevel := flag.String(
+		"l",
+		_logLevel,
+		"log level",
+	)
+
 	flag.Parse()
 
 	return &Config{
 		Server: SelfConfig{
-			Address: getEnv("ADDRESS", *address),
+			Address:  getEnv("ADDRESS", *address),
+			LogLevel: getEnv("LOG_LEVEL", *logLevel),
 		},
 	}
 }

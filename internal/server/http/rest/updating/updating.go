@@ -1,4 +1,4 @@
-package rest
+package updating
 
 import (
 	"net/http"
@@ -8,23 +8,28 @@ import (
 	"github.com/kaa-it/go-devops/internal/server/updating"
 )
 
-type UpdatingHandler struct {
+type Logger interface {
+	RequestLogger(h http.HandlerFunc) http.HandlerFunc
+}
+
+type Handler struct {
 	a updating.Service
+	l Logger
 }
 
-func NewUpdatingHandler(a updating.Service) *UpdatingHandler {
-	return &UpdatingHandler{a}
+func NewHandler(a updating.Service, l Logger) *Handler {
+	return &Handler{a, l}
 }
 
-func (h *UpdatingHandler) Route() *chi.Mux {
+func (h *Handler) Route() *chi.Mux {
 	mux := chi.NewRouter()
 
-	mux.Post("/{category}/{name}/{value}", h.update)
+	mux.Post("/{category}/{name}/{value}", h.l.RequestLogger(h.update))
 
 	return mux
 }
 
-func (h *UpdatingHandler) update(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	category := chi.URLParam(r, "category")
 
 	if category != "gauge" && category != "counter" {

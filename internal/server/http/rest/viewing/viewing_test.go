@@ -1,4 +1,4 @@
-package rest
+package viewing
 
 import (
 	"errors"
@@ -39,6 +39,16 @@ func (s *fakeViewService) Gauges() ([]viewing.Gauge, error) {
 func (s *fakeViewService) Counters() ([]viewing.Counter, error) {
 	args := s.Called()
 	return args.Get(0).([]viewing.Counter), args.Error(1)
+}
+
+type fakeLogger struct {
+	mock.Mock
+	h http.HandlerFunc
+}
+
+func (l *fakeLogger) RequestLogger(h http.HandlerFunc) http.HandlerFunc {
+	args := l.Called(h)
+	return args.Get(0).(func(w http.ResponseWriter, r *http.Request))
 }
 
 func TestViewHandler(t *testing.T) {
@@ -133,7 +143,14 @@ func TestViewHandler(t *testing.T) {
 				}
 			}
 
-			h := NewViewingHandler(s)
+			l := &fakeLogger{}
+			l.On("RequestLogger", mock.Anything).Return(func(w http.ResponseWriter, r *http.Request) {
+				l.h.ServeHTTP(w, r)
+			})
+
+			h := NewHandler(s, l)
+
+			l.h = h.value
 
 			r := chi.NewRouter()
 			r.Mount("/", h.Route())
@@ -152,6 +169,8 @@ func TestViewHandler(t *testing.T) {
 
 			assert.NoError(t, err, "error making HTTP request")
 			assert.Equal(t, test.want.response, string(resp.Body()))
+
+			l.AssertNumberOfCalls(t, "RequestLogger", 2)
 
 			switch test.metricType {
 			case "gauge":

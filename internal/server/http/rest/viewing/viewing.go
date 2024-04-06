@@ -1,4 +1,4 @@
-package rest
+package viewing
 
 import (
 	"html/template"
@@ -10,24 +10,29 @@ import (
 	"github.com/kaa-it/go-devops/internal/server/viewing"
 )
 
-type ViewingHandler struct {
+type Logger interface {
+	RequestLogger(h http.HandlerFunc) http.HandlerFunc
+}
+
+type Handler struct {
 	a viewing.Service
+	l Logger
 }
 
-func NewViewingHandler(a viewing.Service) *ViewingHandler {
-	return &ViewingHandler{a}
+func NewHandler(a viewing.Service, l Logger) *Handler {
+	return &Handler{a, l}
 }
 
-func (h *ViewingHandler) Route() *chi.Mux {
+func (h *Handler) Route() *chi.Mux {
 	mux := chi.NewRouter()
 
-	mux.Get("/", h.home)
-	mux.Get("/value/{category}/{name}", h.value)
+	mux.Get("/", h.l.RequestLogger(h.home))
+	mux.Get("/value/{category}/{name}", h.l.RequestLogger(h.value))
 
 	return mux
 }
 
-func (h *ViewingHandler) home(w http.ResponseWriter, _ *http.Request) {
+func (h *Handler) home(w http.ResponseWriter, _ *http.Request) {
 	const templ = `
 		<table style='
 			border-collapse: collapse;
@@ -121,7 +126,7 @@ func (h *ViewingHandler) home(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
-func (h *ViewingHandler) value(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) value(w http.ResponseWriter, r *http.Request) {
 	category := chi.URLParam(r, "category")
 
 	if category != "gauge" && category != "counter" {
