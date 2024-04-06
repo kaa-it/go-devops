@@ -68,10 +68,10 @@ func (l *Logger) Infow(msg string, keysAndValues ...interface{}) {
 	l.log.Infow(msg, keysAndValues)
 }
 
-func (l *Logger) Fatalw(msg string, keysAndValues ...interface{}) {
-	l.log.Fatalw(msg, keysAndValues)
+func (l *Logger) Fatal(args ...interface{}) {
+	l.log.Fatal(args)
 }
 
-func (l *Logger) Errorw(msg string, keysAndValues ...interface{}) {
-	l.log.Errorw(msg, keysAndValues)
+func (l *Logger) Error(args ...interface{}) {
+	l.log.Error(args)
 }

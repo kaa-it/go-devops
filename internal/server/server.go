@@ -60,12 +60,12 @@ func (s *Server) Run() {
 	go func() {
 		<-c
 		if err := server.Shutdown(context.Background()); err != nil {
-			log.Errorw(err.Error())
+			log.Error(err.Error())
 		}
 	}()
 
 	err = server.ListenAndServe()
 	if err != nil {
-		log.Fatalw(err.Error())
+		log.Fatal(err.Error())
 	}
 }
