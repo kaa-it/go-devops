@@ -1,4 +1,4 @@
-package updating
+package api
 
 type MetricsType string
 

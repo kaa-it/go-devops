@@ -1,17 +1,21 @@
 package viewing
 
 import (
+	"encoding/json"
+	"fmt"
+	"github.com/go-chi/chi/v5"
+	"github.com/kaa-it/go-devops/internal/api"
+	"github.com/kaa-it/go-devops/internal/server/viewing"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/kaa-it/go-devops/internal/server/viewing"
 )
 
 type Logger interface {
 	RequestLogger(h http.HandlerFunc) http.HandlerFunc
+	Error(args ...interface{})
 }
 
 type Handler struct {
@@ -27,6 +31,7 @@ func (h *Handler) Route() *chi.Mux {
 	mux := chi.NewRouter()
 
 	mux.Get("/", h.l.RequestLogger(h.home))
+	mux.Post("/value/", h.l.RequestLogger(h.valueJSON))
 	mux.Get("/value/{category}/{name}", h.l.RequestLogger(h.value))
 
 	return mux
@@ -145,7 +150,6 @@ func (h *Handler) value(w http.ResponseWriter, r *http.Request) {
 		}
 
 		str := strconv.FormatFloat(value, 'f', -1, 64)
-		//str := fmt.Sprintf("%f", value)
 
 		w.Header().Set("Content-Type", "text/plain;charset=utf-8")
 		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(str)), 10))
@@ -170,5 +174,62 @@ func (h *Handler) value(w http.ResponseWriter, r *http.Request) {
 		if _, err := w.Write([]byte(str)); err != nil {
 			log.Println(err)
 		}
+	}
+}
+
+func (h *Handler) valueJSON(w http.ResponseWriter, r *http.Request) {
+	var req api.Metrics
+
+	//dec := json.NewDecoder(r.Body)
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			h.l.Error(fmt.Sprintf("failed to close body: %v", err))
+		}
+	}()
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		h.l.Error(fmt.Sprintf("failed to read body: %v", err))
+	}
+
+	fmt.Println("recv_body:", string(body))
+
+	if err := json.Unmarshal(body, &req); err != nil {
+		h.l.Error(fmt.Sprintf("failed decoding body for update: %v", err))
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	switch req.MType {
+	case api.GaugeType:
+		value, err := h.a.Gauge(req.ID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		req.Value = &value
+
+	case api.CounterType:
+		value, err := h.a.Counter(req.ID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		req.Delta = &value
+
+	default:
+		h.l.Error(fmt.Sprintf("metric type %s not supported", req.MType))
+		http.Error(w, "Metric type is not supported", http.StatusNotImplemented)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	enc := json.NewEncoder(w)
+	if err := enc.Encode(req); err != nil {
+		h.l.Error(fmt.Sprintf("failed encoding body for update: %v", err))
+		return
 	}
 }

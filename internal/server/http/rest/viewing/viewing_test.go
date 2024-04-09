@@ -3,12 +3,11 @@ package viewing
 import (
 	"errors"
 	"fmt"
+	"github.com/kaa-it/go-devops/internal/server/viewing"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
-
-	"github.com/kaa-it/go-devops/internal/server/viewing"
 
 	"github.com/go-chi/chi/v5"
 
@@ -49,6 +48,10 @@ type fakeLogger struct {
 func (l *fakeLogger) RequestLogger(h http.HandlerFunc) http.HandlerFunc {
 	args := l.Called(h)
 	return args.Get(0).(func(w http.ResponseWriter, r *http.Request))
+}
+
+func (l *fakeLogger) Error(args ...interface{}) {
+	_ = l.Called(args...)
 }
 
 func TestViewHandler(t *testing.T) {
@@ -170,7 +173,166 @@ func TestViewHandler(t *testing.T) {
 			assert.NoError(t, err, "error making HTTP request")
 			assert.Equal(t, test.want.response, string(resp.Body()))
 
-			l.AssertNumberOfCalls(t, "RequestLogger", 2)
+			l.AssertNumberOfCalls(t, "RequestLogger", 3)
+
+			switch test.metricType {
+			case "gauge":
+				s.AssertCalled(t, "Gauge", test.metricName)
+				s.AssertNumberOfCalls(t, "Gauge", 1)
+			case "counter":
+				s.AssertCalled(t, "Counter", test.metricName)
+				s.AssertNumberOfCalls(t, "Counter", 1)
+			}
+		})
+	}
+}
+
+func TestViewJSONHandler(t *testing.T) {
+	type want struct {
+		code     int
+		response string
+	}
+
+	tests := []struct {
+		name              string
+		body              string
+		metricType        string
+		metricName        string
+		metricValue       string
+		checkServiceError bool
+		want              want
+	}{
+		{
+			name:        "success counter case",
+			body:        `{"id": "test", "type": "counter"}`,
+			metricType:  "counter",
+			metricName:  "test",
+			metricValue: "45",
+			want: want{
+				code:     http.StatusOK,
+				response: `{"id": "test", "type": "counter", "delta": 45 }`,
+			},
+		},
+		{
+			name:        "success gauge case",
+			body:        `{"id": "test", "type": "gauge"}`,
+			metricType:  "gauge",
+			metricName:  "test",
+			metricValue: "4.5",
+			want: want{
+				code:     http.StatusOK,
+				response: `{"id": "test", "type": "gauge", "value": 4.5 }`,
+			},
+		},
+		{
+			name:              "metric type is not supported",
+			body:              `{"id": "test", "type": "test"}`,
+			metricType:        "test",
+			metricName:        "test",
+			checkServiceError: true,
+			want: want{
+				code:     http.StatusNotImplemented,
+				response: "Metric type is not supported\n",
+			},
+		},
+		{
+			name:              "gauge metric not found",
+			body:              `{"id": "test2", "type": "gauge"}`,
+			metricType:        "gauge",
+			metricName:        "test2",
+			checkServiceError: true,
+			want: want{
+				code:     http.StatusNotFound,
+				response: "gauge not found\n",
+			},
+		},
+		{
+			name:              "counter metric not found",
+			body:              `{"id": "test2", "type": "counter"}`,
+			metricType:        "counter",
+			metricName:        "test2",
+			checkServiceError: true,
+			want: want{
+				code:     http.StatusNotFound,
+				response: "counter not found\n",
+			},
+		},
+	}
+
+	semaphore := make(chan struct{}, 1)
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			s := &fakeViewService{}
+
+			switch test.metricType {
+			case "gauge":
+				if test.checkServiceError {
+					s.On("Gauge", test.metricName).Return(
+						float64(0),
+						errors.New("gauge not found"),
+					)
+				} else {
+					value, _ := strconv.ParseFloat(test.metricValue, 64)
+					s.On("Gauge", test.metricName).Return(value, nil)
+				}
+			case "counter":
+				if test.checkServiceError {
+					s.On("Counter", test.metricName).Return(
+						int64(0),
+						errors.New("counter not found"),
+					)
+				} else {
+					value, _ := strconv.ParseInt(test.metricValue, 10, 64)
+					s.On("Counter", test.metricName).Return(value, nil)
+				}
+			}
+
+			l := &fakeLogger{}
+			l.On("RequestLogger", mock.Anything).Return(func(w http.ResponseWriter, r *http.Request) {
+				l.h.ServeHTTP(w, r)
+			})
+			l.On("Error", mock.Anything).Return()
+
+			h := NewHandler(s, l)
+
+			l.h = h.valueJSON
+
+			r := chi.NewRouter()
+			r.Mount("/", h.Route())
+
+			srv := httptest.NewServer(r)
+
+			defer srv.Close()
+
+			url := fmt.Sprintf("%s/value", srv.URL)
+
+			req := resty.New().R()
+			req.Method = http.MethodPost
+			req.URL = url
+			req.SetHeader("Content-Type", "application/json")
+
+			fmt.Printf("body: %s\n", test.body)
+
+			req.SetBody(test.body)
+
+			semaphore <- struct{}{}
+
+			resp, err := req.Send()
+
+			<-semaphore
+
+			assert.NoError(t, err, "error making HTTP request")
+			assert.Equal(t, test.want.code, resp.StatusCode())
+
+			if !test.checkServiceError {
+				fmt.Printf("body: %s\n", string(resp.Body()))
+				assert.JSONEq(t, test.want.response, string(resp.Body()))
+			} else {
+				assert.Equal(t, test.want.response, string(resp.Body()))
+			}
+
+			l.AssertNumberOfCalls(t, "RequestLogger", 3)
 
 			switch test.metricType {
 			case "gauge":

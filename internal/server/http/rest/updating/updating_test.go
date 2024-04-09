@@ -26,6 +26,16 @@ func (s *fakeUpdateService) UpdateCounter(name string, value int64) {
 	_ = s.Called(name, value)
 }
 
+func (s *fakeUpdateService) Gauge(name string) (float64, error) {
+	args := s.Called(name)
+	return args.Get(0).(float64), args.Error(1)
+}
+
+func (s *fakeUpdateService) Counter(name string) (int64, error) {
+	args := s.Called(name)
+	return args.Get(0).(int64), args.Error(1)
+}
+
 type fakeLogger struct {
 	mock.Mock
 	h http.HandlerFunc
@@ -34,6 +44,10 @@ type fakeLogger struct {
 func (l *fakeLogger) RequestLogger(h http.HandlerFunc) http.HandlerFunc {
 	args := l.Called(h)
 	return args.Get(0).(func(w http.ResponseWriter, r *http.Request))
+}
+
+func (l *fakeLogger) Error(args ...interface{}) {
+	_ = l.Called(args...)
 }
 
 func TestUpdateHandler(t *testing.T) {
@@ -141,7 +155,7 @@ func TestUpdateHandler(t *testing.T) {
 				assert.Equal(t, test.want.response, string(resp.Body()))
 			}
 
-			l.AssertNumberOfCalls(t, "RequestLogger", 1)
+			l.AssertNumberOfCalls(t, "RequestLogger", 2)
 
 			if test.checkServiceCall {
 				switch test.metricType {
@@ -153,6 +167,148 @@ func TestUpdateHandler(t *testing.T) {
 					value, _ := strconv.ParseInt(test.metricValue, 10, 64)
 					s.AssertCalled(t, "UpdateCounter", test.metricName, value)
 					s.AssertNumberOfCalls(t, "UpdateCounter", 1)
+				}
+			}
+		})
+	}
+}
+
+func TestJSONUpdateHandler(t *testing.T) {
+	type want struct {
+		code     int
+		response string
+	}
+
+	tests := []struct {
+		name             string
+		body             string
+		metricName       string
+		metricType       string
+		startDelta       int64
+		delta            int64
+		value            float64
+		checkServiceCall bool
+		want             want
+	}{
+		{
+			name:             "success counter case",
+			body:             `{"id": "test", "type": "counter", "delta": 45}`,
+			metricName:       "test",
+			metricType:       "counter",
+			startDelta:       int64(45),
+			delta:            int64(45),
+			checkServiceCall: true,
+			want: want{
+				code:     http.StatusOK,
+				response: `{"id": "test", "type": "counter", "delta": 90}`,
+			},
+		},
+		{
+			name:             "success gauge case",
+			body:             `{"id": "test", "type": "gauge", "value": 45.2}`,
+			metricName:       "test",
+			metricType:       "gauge",
+			value:            45.2,
+			checkServiceCall: true,
+			want: want{
+				code:     http.StatusOK,
+				response: `{"id": "test", "type": "gauge", "value": 45.2}`,
+			},
+		},
+		{
+			name: "metric type is not supported",
+			body: `{"id": "test", "type": "test", "delta": 45}`,
+			want: want{
+				code:     http.StatusNotImplemented,
+				response: "Metric type is not supported\n",
+			},
+		},
+		{
+			name: "no gauge metric value",
+			body: `{"id": "test", "type": "gauge", "delta": 45}`,
+			want: want{
+				code:     http.StatusBadRequest,
+				response: "Metric value not found\n",
+			},
+		},
+		{
+			name: "no counter metric value",
+			body: `{"id": "test", "type": "counter", "value": 45.2}`,
+			want: want{
+				code:     http.StatusBadRequest,
+				response: "Metric value not found\n",
+			},
+		},
+		{
+			name: "failed to parse request",
+			body: `{"id": "test", "type": "counter", "delta": "45""}`,
+			want: want{
+				code:     http.StatusBadRequest,
+				response: "invalid character '\"' after object key:value pair\n",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			s := &fakeUpdateService{}
+			s.On("UpdateGauge", mock.Anything, mock.Anything).Return()
+			s.On("UpdateCounter", mock.Anything, mock.Anything).Return()
+			s.On("Gauge", mock.Anything, mock.Anything).Return(test.value, nil)
+			s.On("Counter", mock.Anything, mock.Anything).Return(test.delta+test.startDelta, nil)
+
+			l := &fakeLogger{}
+			l.On("RequestLogger", mock.Anything).Return(func(w http.ResponseWriter, r *http.Request) {
+				l.h.ServeHTTP(w, r)
+			})
+			l.On("Error", mock.Anything).Return()
+
+			h := NewHandler(s, l)
+
+			l.h = h.updateJSON
+
+			r := chi.NewRouter()
+			r.Mount("/update", h.Route())
+
+			srv := httptest.NewServer(r)
+
+			defer srv.Close()
+
+			url := fmt.Sprintf("%s/update", srv.URL)
+
+			req := resty.New().R()
+			req.Method = http.MethodPost
+			req.URL = url
+			req.SetHeader("Content-Type", "application/json")
+			req.SetBody(test.body)
+
+			resp, err := req.Send()
+
+			assert.NoError(t, err, "error making HTTP request")
+			assert.Equal(t, test.want.code, resp.StatusCode())
+
+			if test.want.response != "" {
+				if test.checkServiceCall {
+					assert.JSONEq(t, test.want.response, string(resp.Body()))
+				} else {
+					assert.Equal(t, test.want.response, string(resp.Body()))
+				}
+			}
+
+			l.AssertNumberOfCalls(t, "RequestLogger", 2)
+
+			if test.checkServiceCall {
+				switch test.metricType {
+				case "gauge":
+					s.AssertCalled(t, "UpdateGauge", test.metricName, test.value)
+					s.AssertNumberOfCalls(t, "UpdateGauge", 1)
+					s.AssertCalled(t, "Gauge", test.metricName)
+					s.AssertNumberOfCalls(t, "Gauge", 1)
+				case "counter":
+					s.AssertCalled(t, "UpdateCounter", test.metricName, test.delta)
+					s.AssertNumberOfCalls(t, "UpdateCounter", 1)
+					s.AssertCalled(t, "Counter", test.metricName)
+					s.AssertNumberOfCalls(t, "Counter", 1)
 				}
 			}
 		})
