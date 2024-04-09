@@ -155,7 +155,7 @@ func (a *Agent) sendMetric(m api.Metrics) error {
 	req := a.client.R()
 	req.Method = http.MethodPost
 
-	url := fmt.Sprintf("http://%s/update", a.config.Server.Address)
+	url := fmt.Sprintf("http://%s/update/", a.config.Server.Address)
 
 	req.URL = url
 

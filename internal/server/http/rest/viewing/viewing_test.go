@@ -305,7 +305,7 @@ func TestViewJSONHandler(t *testing.T) {
 
 			defer srv.Close()
 
-			url := fmt.Sprintf("%s/value", srv.URL)
+			url := fmt.Sprintf("%s/value/", srv.URL)
 
 			req := resty.New().R()
 			req.Method = http.MethodPost
