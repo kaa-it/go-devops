@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/kaa-it/go-devops/internal/api"
+	"github.com/kaa-it/go-devops/internal/gzip"
 	"github.com/kaa-it/go-devops/internal/server/viewing"
 	"html/template"
-	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -30,8 +30,8 @@ func NewHandler(a viewing.Service, l Logger) *Handler {
 func (h *Handler) Route() *chi.Mux {
 	mux := chi.NewRouter()
 
-	mux.Get("/", h.l.RequestLogger(h.home))
-	mux.Post("/value/", h.l.RequestLogger(h.valueJSON))
+	mux.Get("/", h.l.RequestLogger(gzip.Middleware(h.home)))
+	mux.Post("/value/", h.l.RequestLogger(gzip.Middleware(h.valueJSON)))
 	mux.Get("/value/{category}/{name}", h.l.RequestLogger(h.value))
 
 	return mux
@@ -124,6 +124,7 @@ func (h *Handler) home(w http.ResponseWriter, _ *http.Request) {
 		Counters: counters,
 	}
 
+	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 
 	if err := t.Execute(w, data); err != nil {
@@ -152,7 +153,6 @@ func (h *Handler) value(w http.ResponseWriter, r *http.Request) {
 		str := strconv.FormatFloat(value, 'f', -1, 64)
 
 		w.Header().Set("Content-Type", "text/plain;charset=utf-8")
-		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(str)), 10))
 		w.WriteHeader(http.StatusOK)
 
 		if _, err := w.Write([]byte(str)); err != nil {
@@ -168,7 +168,6 @@ func (h *Handler) value(w http.ResponseWriter, r *http.Request) {
 		str := strconv.FormatInt(value, 10)
 
 		w.Header().Set("Content-Type", "text/plain;charset=utf-8")
-		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(str)), 10))
 		w.WriteHeader(http.StatusOK)
 
 		if _, err := w.Write([]byte(str)); err != nil {
@@ -180,21 +179,14 @@ func (h *Handler) value(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) valueJSON(w http.ResponseWriter, r *http.Request) {
 	var req api.Metrics
 
-	//dec := json.NewDecoder(r.Body)
+	dec := json.NewDecoder(r.Body)
 	defer func() {
 		if err := r.Body.Close(); err != nil {
 			h.l.Error(fmt.Sprintf("failed to close body: %v", err))
 		}
 	}()
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		h.l.Error(fmt.Sprintf("failed to read body: %v", err))
-	}
-
-	fmt.Println("recv_body:", string(body))
-
-	if err := json.Unmarshal(body, &req); err != nil {
+	if err := dec.Decode(&req); err != nil {
 		h.l.Error(fmt.Sprintf("failed decoding body for update: %v", err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -226,6 +218,7 @@ func (h *Handler) valueJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 
 	enc := json.NewEncoder(w)
 	if err := enc.Encode(req); err != nil {

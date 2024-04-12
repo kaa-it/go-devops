@@ -1,0 +1,4 @@
+POST http://localhost:8080/update/
+Content-Type: application/json
+
+{"id": "test", "type": "gauge", "value": 45.2}

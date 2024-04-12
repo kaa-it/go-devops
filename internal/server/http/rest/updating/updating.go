@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/kaa-it/go-devops/internal/api"
+	"github.com/kaa-it/go-devops/internal/gzip"
 	"github.com/kaa-it/go-devops/internal/server/updating"
 	"net/http"
 	"strconv"
@@ -27,7 +28,7 @@ func NewHandler(a updating.Service, l Logger) *Handler {
 func (h *Handler) Route() *chi.Mux {
 	mux := chi.NewRouter()
 
-	mux.Post("/", h.l.RequestLogger(h.updateJSON))
+	mux.Post("/", h.l.RequestLogger(gzip.Middleware(h.updateJSON)))
 	mux.Post("/{category}/{name}/{value}", h.l.RequestLogger(h.update))
 
 	return mux
@@ -125,6 +126,7 @@ func (h *Handler) updateJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 
 	enc := json.NewEncoder(w)
 	if err := enc.Encode(req); err != nil {

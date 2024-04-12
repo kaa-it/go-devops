@@ -1,9 +1,13 @@
 package viewing
 
 import (
+	gzipLib "compress/gzip"
 	"errors"
 	"fmt"
+	"github.com/kaa-it/go-devops/internal/gzip"
 	"github.com/kaa-it/go-devops/internal/server/viewing"
+	"github.com/stretchr/testify/require"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -259,8 +263,6 @@ func TestViewJSONHandler(t *testing.T) {
 		},
 	}
 
-	semaphore := make(chan struct{}, 1)
-
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			s := &fakeViewService{}
@@ -312,21 +314,14 @@ func TestViewJSONHandler(t *testing.T) {
 			req.URL = url
 			req.SetHeader("Content-Type", "application/json")
 
-			fmt.Printf("body: %s\n", test.body)
-
 			req.SetBody(test.body)
 
-			semaphore <- struct{}{}
-
 			resp, err := req.Send()
-
-			<-semaphore
 
 			assert.NoError(t, err, "error making HTTP request")
 			assert.Equal(t, test.want.code, resp.StatusCode())
 
 			if !test.checkServiceError {
-				fmt.Printf("body: %s\n", string(resp.Body()))
 				assert.JSONEq(t, test.want.response, string(resp.Body()))
 			} else {
 				assert.Equal(t, test.want.response, string(resp.Body()))
@@ -344,4 +339,63 @@ func TestViewJSONHandler(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestViewJSONGzip(t *testing.T) {
+	t.Run("test view gauge gzip", func(t *testing.T) {
+		body := `{"id": "test", "type": "gauge"}`
+		response := `{"id": "test", "type": "gauge", "value": 45.2}`
+
+		s := &fakeViewService{}
+
+		s.On("Gauge", "test").Return(45.2, nil)
+
+		l := &fakeLogger{}
+		l.On("RequestLogger", mock.Anything).Return(func(w http.ResponseWriter, r *http.Request) {
+			l.h.ServeHTTP(w, r)
+		})
+		l.On("Error", mock.Anything).Return()
+
+		h := NewHandler(s, l)
+
+		l.h = gzip.Middleware(h.valueJSON)
+
+		r := chi.NewRouter()
+		r.Mount("/", h.Route())
+
+		srv := httptest.NewServer(r)
+
+		defer srv.Close()
+
+		url := fmt.Sprintf("%s/value/", srv.URL)
+
+		req := resty.New().R()
+		req.Method = http.MethodPost
+		req.URL = url
+		req.SetHeader("Content-Type", "application/json")
+		req.SetHeader("Accept-Encoding", "gzip")
+		req.SetDoNotParseResponse(true)
+
+		req.SetBody(body)
+
+		resp, err := req.Send()
+
+		assert.NoError(t, err, "error making HTTP request")
+		assert.Equal(t, http.StatusOK, resp.StatusCode())
+
+		defer resp.RawBody().Close()
+
+		zr, err := gzipLib.NewReader(resp.RawBody())
+		require.NoError(t, err)
+
+		b, err := io.ReadAll(zr)
+		require.NoError(t, err)
+
+		assert.JSONEq(t, response, string(b))
+
+		l.AssertNumberOfCalls(t, "RequestLogger", 3)
+
+		s.AssertCalled(t, "Gauge", "test")
+		s.AssertNumberOfCalls(t, "Gauge", 1)
+	})
 }

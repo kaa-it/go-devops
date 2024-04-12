@@ -1,7 +1,12 @@
 package updating
 
 import (
+	"bytes"
+	gzipLib "compress/gzip"
 	"fmt"
+	"github.com/kaa-it/go-devops/internal/gzip"
+	"github.com/stretchr/testify/require"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -313,4 +318,121 @@ func TestJSONUpdateHandler(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUpdateGzip(t *testing.T) {
+	t.Run("send gzip metric", func(t *testing.T) {
+		response := `{"id": "test", "type": "gauge", "value": 45.2}`
+
+		s := &fakeUpdateService{}
+		s.On("UpdateGauge", mock.Anything, mock.Anything).Return()
+		s.On("Gauge", mock.Anything, mock.Anything).Return(45.2, nil)
+
+		l := &fakeLogger{}
+		l.On("RequestLogger", mock.Anything).Return(func(w http.ResponseWriter, r *http.Request) {
+			l.h.ServeHTTP(w, r)
+		})
+		l.On("Error", mock.Anything).Return()
+
+		h := NewHandler(s, l)
+
+		l.h = gzip.Middleware(h.updateJSON)
+
+		r := chi.NewRouter()
+		r.Mount("/update", h.Route())
+
+		srv := httptest.NewServer(r)
+
+		defer srv.Close()
+
+		url := fmt.Sprintf("%s/update", srv.URL)
+
+		buf := bytes.NewBuffer(nil)
+		zw := gzipLib.NewWriter(buf)
+
+		_, err := zw.Write([]byte(response))
+		require.NoError(t, err)
+
+		err = zw.Close()
+		require.NoError(t, err)
+
+		req := resty.New().R()
+		req.Method = http.MethodPost
+		req.URL = url
+		req.SetHeader("Content-Type", "application/json")
+		req.SetHeader("Content-Encoding", "gzip")
+		req.SetHeader("Accept-Encoding", "")
+		req.SetBody(buf)
+
+		resp, err := req.Send()
+
+		assert.NoError(t, err, "error making HTTP request")
+		assert.Equal(t, http.StatusOK, resp.StatusCode())
+
+		assert.JSONEq(t, response, string(resp.Body()))
+
+		l.AssertNumberOfCalls(t, "RequestLogger", 2)
+
+		s.AssertCalled(t, "UpdateGauge", "test", 45.2)
+		s.AssertNumberOfCalls(t, "UpdateGauge", 1)
+		s.AssertCalled(t, "Gauge", "test")
+		s.AssertNumberOfCalls(t, "Gauge", 1)
+	})
+
+	t.Run("accept gzip metric", func(t *testing.T) {
+		response := `{"id": "test", "type": "gauge", "value": 45.2}`
+
+		s := &fakeUpdateService{}
+		s.On("UpdateGauge", mock.Anything, mock.Anything).Return()
+		s.On("Gauge", mock.Anything, mock.Anything).Return(45.2, nil)
+
+		l := &fakeLogger{}
+		l.On("RequestLogger", mock.Anything).Return(func(w http.ResponseWriter, r *http.Request) {
+			l.h.ServeHTTP(w, r)
+		})
+		l.On("Error", mock.Anything).Return()
+
+		h := NewHandler(s, l)
+
+		l.h = gzip.Middleware(h.updateJSON)
+
+		r := chi.NewRouter()
+		r.Mount("/update", h.Route())
+
+		srv := httptest.NewServer(r)
+
+		defer srv.Close()
+
+		url := fmt.Sprintf("%s/update", srv.URL)
+
+		req := resty.New().R()
+		req.Method = http.MethodPost
+		req.URL = url
+		req.SetHeader("Content-Type", "application/json")
+		req.SetHeader("Accept-Encoding", "gzip")
+		req.SetBody(response)
+		req.SetDoNotParseResponse(true)
+
+		resp, err := req.Send()
+
+		assert.NoError(t, err, "error making HTTP request")
+		assert.Equal(t, http.StatusOK, resp.StatusCode())
+
+		defer resp.RawBody().Close()
+
+		zr, err := gzipLib.NewReader(resp.RawBody())
+		require.NoError(t, err)
+
+		b, err := io.ReadAll(zr)
+		require.NoError(t, err)
+
+		assert.JSONEq(t, response, string(b))
+
+		l.AssertNumberOfCalls(t, "RequestLogger", 2)
+
+		s.AssertCalled(t, "UpdateGauge", "test", 45.2)
+		s.AssertNumberOfCalls(t, "UpdateGauge", 1)
+		s.AssertCalled(t, "Gauge", "test")
+		s.AssertNumberOfCalls(t, "Gauge", 1)
+	})
 }

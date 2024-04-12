@@ -1,7 +1,10 @@
 package agent
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/kaa-it/go-devops/internal/api"
 	"log"
@@ -160,8 +163,21 @@ func (a *Agent) sendMetric(m api.Metrics) error {
 	req.URL = url
 
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
 
-	req.SetBody(m)
+	buf := bytes.NewBuffer(nil)
+	zw := gzip.NewWriter(buf)
+
+	enc := json.NewEncoder(zw)
+	if err := enc.Encode(m); err != nil {
+		return fmt.Errorf("failed to encode metric for %s: %w", url, err)
+	}
+
+	if err := zw.Close(); err != nil {
+		return fmt.Errorf("failed to close gzip writer: %w", err)
+	}
+
+	req.SetBody(buf)
 
 	resp, err := req.Send()
 	if err != nil {
