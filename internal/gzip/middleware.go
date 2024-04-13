@@ -6,21 +6,17 @@ import (
 )
 
 func Middleware(h http.HandlerFunc) http.HandlerFunc {
-	var gw *Writer
 	return func(w http.ResponseWriter, r *http.Request) {
 		ow := w
 
 		supportGzip := isSupportGzip(r.Header.Values("Accept-Encoding"))
 		if supportGzip {
-			if gw == nil {
-				gw = NewWriter(w)
-			}
+			var gw = NewWriter(w)
 
 			ow = gw
 
 			defer func() {
 				gw.Close()
-				gw.Reset()
 			}()
 		}
 

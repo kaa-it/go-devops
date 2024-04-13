@@ -2,6 +2,7 @@ package gzip
 
 import (
 	"compress/gzip"
+	"fmt"
 	"net/http"
 )
 
@@ -27,12 +28,16 @@ func (gw *Writer) Header() http.Header {
 func (gw *Writer) WriteHeader(statusCode int) {
 	contentType := gw.w.Header().Get("Content-Type")
 
+	fmt.Println("Gzip write header start")
+
 	if statusCode < 300 && isValidContentType(contentType) {
 		gw.w.Header().Set("Content-Encoding", "gzip")
 		gw.compress = true
 	}
 
 	gw.w.WriteHeader(statusCode)
+
+	fmt.Println("Gzip write header stop")
 }
 
 func (gw *Writer) Write(b []byte) (int, error) {
@@ -45,11 +50,6 @@ func (gw *Writer) Write(b []byte) (int, error) {
 
 func (gw *Writer) Close() error {
 	return gw.zw.Close()
-}
-
-func (gw *Writer) Reset() {
-	gw.zw.Reset(gw.w)
-	gw.compress = false
 }
 
 func isValidContentType(contentType string) bool {
