@@ -2,12 +2,14 @@ package server
 
 import (
 	"context"
+	"errors"
 	updatingRest "github.com/kaa-it/go-devops/internal/server/http/rest/updating"
 	viewingRest "github.com/kaa-it/go-devops/internal/server/http/rest/viewing"
 	"github.com/kaa-it/go-devops/internal/server/logger"
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/kaa-it/go-devops/internal/server/viewing"
@@ -39,7 +41,10 @@ func (s *Server) Run() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 
-	storage := memory.NewStorage()
+	storage, err := memory.NewStorage(&s.config.Storage)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 
 	updater := updating.NewService(storage)
 	viewer := viewing.NewService(storage)
@@ -57,15 +62,29 @@ func (s *Server) Run() {
 		Handler: r,
 	}
 
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+
 	go func() {
 		<-c
 		if err := server.Shutdown(context.Background()); err != nil {
 			log.Error(err.Error())
 		}
+
+		wg.Done()
 	}()
 
 	err = server.ListenAndServe()
-	if err != nil {
+	if !errors.Is(err, http.ErrServerClosed) {
+		log.Fatal(err.Error())
+	}
+
+	wg.Wait()
+
+	storage.Wait()
+
+	if err := storage.Save(); err != nil {
 		log.Fatal(err.Error())
 	}
 }

@@ -38,6 +38,7 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	category := chi.URLParam(r, "category")
 
 	if category != "gauge" && category != "counter" {
+		h.l.Error("Metric type is not supported")
 		http.Error(w, "Metric type is not supported", http.StatusNotImplemented)
 		return
 	}
@@ -50,18 +51,28 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	case "gauge":
 		value, err := strconv.ParseFloat(valueStr, 64)
 		if err != nil {
+			h.l.Error("Invalid metric value")
 			http.Error(w, "Invalid metric value", http.StatusBadRequest)
 			return
 		}
 
-		h.a.UpdateGauge(name, value)
+		if err := h.a.UpdateGauge(name, value); err != nil {
+			h.l.Error(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	case "counter":
 		value, err := strconv.ParseInt(valueStr, 10, 64)
 		if err != nil {
 			http.Error(w, "Invalid metric value", http.StatusBadRequest)
 			return
 		}
-		h.a.UpdateCounter(name, value)
+
+		if err := h.a.UpdateCounter(name, value); err != nil {
+			h.l.Error(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -91,7 +102,11 @@ func (h *Handler) updateJSON(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		h.a.UpdateGauge(req.ID, *req.Value)
+		if err := h.a.UpdateGauge(req.ID, *req.Value); err != nil {
+			h.l.Error(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		val, err := h.a.Gauge(req.ID)
 		if err != nil {
@@ -109,7 +124,11 @@ func (h *Handler) updateJSON(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		h.a.UpdateCounter(req.ID, *req.Delta)
+		if err := h.a.UpdateCounter(req.ID, *req.Delta); err != nil {
+			h.l.Error(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		val, err := h.a.Counter(req.ID)
 		if err != nil {

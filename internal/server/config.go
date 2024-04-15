@@ -2,6 +2,7 @@ package server
 
 import (
 	"flag"
+	"github.com/kaa-it/go-devops/internal/server/storage/memory"
 	"os"
 	"strconv"
 	"time"
@@ -16,15 +17,13 @@ const (
 )
 
 type SelfConfig struct {
-	Address       string
-	LogLevel      string
-	StoreInterval time.Duration
-	StoreFilePath string
-	Restore       bool
+	Address  string
+	LogLevel string
 }
 
 type Config struct {
-	Server SelfConfig
+	Server  SelfConfig
+	Storage memory.StorageConfig
 }
 
 func NewConfig() *Config {
@@ -64,8 +63,10 @@ func NewConfig() *Config {
 
 	return &Config{
 		Server: SelfConfig{
-			Address:       getEnv("ADDRESS", *address),
-			LogLevel:      getEnv("LOG_LEVEL", *logLevel),
+			Address:  getEnv("ADDRESS", *address),
+			LogLevel: getEnv("LOG_LEVEL", *logLevel),
+		},
+		Storage: memory.StorageConfig{
 			StoreInterval: storeDuration,
 			StoreFilePath: getEnv("FILE_STORAGE_PATH", *storeFilePath),
 			Restore:       getEnvBool("RESTORE", *restore),

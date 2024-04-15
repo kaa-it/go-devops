@@ -23,12 +23,14 @@ type fakeUpdateService struct {
 	mock.Mock
 }
 
-func (s *fakeUpdateService) UpdateGauge(name string, value float64) {
-	_ = s.Called(name, value)
+func (s *fakeUpdateService) UpdateGauge(name string, value float64) error {
+	args := s.Called(name, value)
+	return args.Error(0)
 }
 
-func (s *fakeUpdateService) UpdateCounter(name string, value int64) {
-	_ = s.Called(name, value)
+func (s *fakeUpdateService) UpdateCounter(name string, value int64) error {
+	args := s.Called(name, value)
+	return args.Error(0)
 }
 
 func (s *fakeUpdateService) Gauge(name string) (float64, error) {
@@ -126,13 +128,15 @@ func TestUpdateHandler(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			s := &fakeUpdateService{}
-			s.On("UpdateGauge", mock.Anything, mock.Anything).Return()
-			s.On("UpdateCounter", mock.Anything, mock.Anything).Return()
+			s.On("UpdateGauge", mock.Anything, mock.Anything).Return(nil)
+			s.On("UpdateCounter", mock.Anything, mock.Anything).Return(nil)
 
 			l := &fakeLogger{}
 			l.On("RequestLogger", mock.Anything).Return(func(w http.ResponseWriter, r *http.Request) {
 				l.h.ServeHTTP(w, r)
 			})
+
+			l.On("Error", mock.Anything).Return()
 
 			h := NewHandler(s, l)
 
@@ -257,8 +261,8 @@ func TestJSONUpdateHandler(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			s := &fakeUpdateService{}
-			s.On("UpdateGauge", mock.Anything, mock.Anything).Return()
-			s.On("UpdateCounter", mock.Anything, mock.Anything).Return()
+			s.On("UpdateGauge", mock.Anything, mock.Anything).Return(nil)
+			s.On("UpdateCounter", mock.Anything, mock.Anything).Return(nil)
 			s.On("Gauge", mock.Anything, mock.Anything).Return(test.value, nil)
 			s.On("Counter", mock.Anything, mock.Anything).Return(test.delta+test.startDelta, nil)
 
@@ -325,7 +329,7 @@ func TestUpdateGzip(t *testing.T) {
 		response := `{"id": "test", "type": "gauge", "value": 45.2}`
 
 		s := &fakeUpdateService{}
-		s.On("UpdateGauge", mock.Anything, mock.Anything).Return()
+		s.On("UpdateGauge", mock.Anything, mock.Anything).Return(nil)
 		s.On("Gauge", mock.Anything, mock.Anything).Return(45.2, nil)
 
 		l := &fakeLogger{}
@@ -383,7 +387,7 @@ func TestUpdateGzip(t *testing.T) {
 		response := `{"id": "test", "type": "gauge", "value": 45.2}`
 
 		s := &fakeUpdateService{}
-		s.On("UpdateGauge", mock.Anything, mock.Anything).Return()
+		s.On("UpdateGauge", mock.Anything, mock.Anything).Return(nil)
 		s.On("Gauge", mock.Anything, mock.Anything).Return(45.2, nil)
 
 		l := &fakeLogger{}

@@ -8,9 +8,17 @@ import (
 
 func TestRepository_UpdateGauge(t *testing.T) {
 	t.Run("update once", func(t *testing.T) {
-		s := NewStorage()
+		s, err := NewStorage(&StorageConfig{
+			StoreInterval: 0,
+			StoreFilePath: "",
+			Restore:       false,
+		})
 
-		s.UpdateGauge("TestMetric", 6.04)
+		assert.NoError(t, err)
+
+		err = s.UpdateGauge("TestMetric", 6.04)
+
+		assert.NoError(t, err)
 
 		value, ok := s.gauges["TestMetric"]
 
@@ -19,10 +27,21 @@ func TestRepository_UpdateGauge(t *testing.T) {
 	})
 
 	t.Run("update twice", func(t *testing.T) {
-		s := NewStorage()
+		s, err := NewStorage(&StorageConfig{
+			StoreInterval: 0,
+			StoreFilePath: "",
+			Restore:       false,
+		})
 
-		s.UpdateGauge("TestMetric", 6.04)
-		s.UpdateGauge("TestMetric", 7.04)
+		assert.NoError(t, err)
+
+		err = s.UpdateGauge("TestMetric", 6.04)
+
+		assert.NoError(t, err)
+
+		err = s.UpdateGauge("TestMetric", 7.04)
+
+		assert.NoError(t, err)
 
 		value, ok := s.gauges["TestMetric"]
 
@@ -33,9 +52,17 @@ func TestRepository_UpdateGauge(t *testing.T) {
 
 func TestRepository_UpdateCounter(t *testing.T) {
 	t.Run("update once", func(t *testing.T) {
-		s := NewStorage()
+		s, err := NewStorage(&StorageConfig{
+			StoreInterval: 0,
+			StoreFilePath: "",
+			Restore:       false,
+		})
 
-		s.UpdateCounter("TestMetric", 60)
+		assert.NoError(t, err)
+
+		err = s.UpdateCounter("TestMetric", 60)
+
+		assert.NoError(t, err)
 
 		value, ok := s.counters["TestMetric"]
 
@@ -44,10 +71,21 @@ func TestRepository_UpdateCounter(t *testing.T) {
 	})
 
 	t.Run("update twice", func(t *testing.T) {
-		s := NewStorage()
+		s, err := NewStorage(&StorageConfig{
+			StoreInterval: 0,
+			StoreFilePath: "",
+			Restore:       false,
+		})
 
-		s.UpdateCounter("TestMetric", 60)
-		s.UpdateCounter("TestMetric", 60)
+		assert.NoError(t, err)
+
+		err = s.UpdateCounter("TestMetric", 60)
+
+		assert.NoError(t, err)
+
+		err = s.UpdateCounter("TestMetric", 60)
+
+		assert.NoError(t, err)
 
 		value, ok := s.counters["TestMetric"]
 
@@ -57,7 +95,13 @@ func TestRepository_UpdateCounter(t *testing.T) {
 }
 
 func TestRepository_ForEachGauge(t *testing.T) {
-	s := NewStorage()
+	s, err := NewStorage(&StorageConfig{
+		StoreInterval: 0,
+		StoreFilePath: "",
+		Restore:       false,
+	})
+
+	assert.NoError(t, err)
 
 	var called int
 
@@ -65,10 +109,21 @@ func TestRepository_ForEachGauge(t *testing.T) {
 		called += 1
 	}
 
-	s.UpdateGauge("TestMetric1", 6.04)
-	s.UpdateGauge("TestMetric2", 7.04)
-	s.UpdateCounter("TestMetric3", 60)
-	s.UpdateCounter("TestMetric3", 60)
+	err = s.UpdateGauge("TestMetric1", 6.04)
+
+	assert.NoError(t, err)
+
+	err = s.UpdateGauge("TestMetric2", 7.04)
+
+	assert.NoError(t, err)
+
+	err = s.UpdateCounter("TestMetric3", 60)
+
+	assert.NoError(t, err)
+
+	err = s.UpdateCounter("TestMetric3", 60)
+
+	assert.NoError(t, err)
 
 	s.ForEachGauge(mockFn)
 
@@ -76,7 +131,13 @@ func TestRepository_ForEachGauge(t *testing.T) {
 }
 
 func TestRepository_ForEachCounter(t *testing.T) {
-	s := NewStorage()
+	s, err := NewStorage(&StorageConfig{
+		StoreInterval: 0,
+		StoreFilePath: "",
+		Restore:       false,
+	})
+
+	assert.NoError(t, err)
 
 	var called int
 
@@ -84,10 +145,21 @@ func TestRepository_ForEachCounter(t *testing.T) {
 		called += 1
 	}
 
-	s.UpdateGauge("TestMetric1", 6.04)
-	s.UpdateGauge("TestMetric2", 7.04)
-	s.UpdateCounter("TestMetric3", 60)
-	s.UpdateCounter("TestMetric3", 60)
+	err = s.UpdateGauge("TestMetric1", 6.04)
+
+	assert.NoError(t, err)
+
+	err = s.UpdateGauge("TestMetric2", 7.04)
+
+	assert.NoError(t, err)
+
+	err = s.UpdateCounter("TestMetric3", 60)
+
+	assert.NoError(t, err)
+
+	err = s.UpdateCounter("TestMetric3", 60)
+
+	assert.NoError(t, err)
 
 	s.ForEachCounter(mockFn)
 
