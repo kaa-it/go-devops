@@ -217,6 +217,13 @@ func (s *Storage) save() error {
 func load(storeFilePath string) (*fileStorage, error) {
 	file, err := os.Open(storeFilePath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return &fileStorage{
+				Gauges:   make(gauges),
+				Counters: make(counters),
+			}, nil
+		}
+
 		return nil, err
 	}
 

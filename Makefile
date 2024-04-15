@@ -53,3 +53,12 @@ test:
                 -binary-path=./server \
                 -server-port=9090 \
                 -source-path=.
+	export SERVER_PORT=9898 && \
+	export ADDRESS="localhost:9898" && \
+	export TEMP_FILE=/tmp/123.json && \
+	metricstest -test.v -test.run=^TestIteration9$$ \
+	-agent-binary-path=./agent \
+	-binary-path=./server \
+	-file-storage-path=/tmp/123.json \
+	-server-port=9898 \
+	-source-path=.
