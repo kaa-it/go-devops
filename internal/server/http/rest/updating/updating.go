@@ -126,7 +126,6 @@ func (h *Handler) updateJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	fmt.Println("Updater write header")
 	w.WriteHeader(http.StatusOK)
 
 	enc := json.NewEncoder(w)

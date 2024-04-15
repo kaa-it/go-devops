@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"fmt"
 	"net/http"
 )
 
@@ -26,8 +25,6 @@ func (r *loggerResponseWriter) Write(b []byte) (int, error) {
 }
 
 func (r *loggerResponseWriter) WriteHeader(statusCode int) {
-	fmt.Println("Logger write header start")
 	r.ResponseWriter.WriteHeader(statusCode)
 	r.responseData.status = statusCode
-	fmt.Println("Logger write header stop")
 }

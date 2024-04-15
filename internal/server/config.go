@@ -3,16 +3,24 @@ package server
 import (
 	"flag"
 	"os"
+	"strconv"
+	"time"
 )
 
 const (
-	_serverAddress = ":8080"
-	_logLevel      = "info"
+	_serverAddress       = ":8080"
+	_logLevel            = "info"
+	_storeIntervalInSecs = 300
+	_storeFilePath       = "/tmp/metrics-db.json"
+	_restore             = true
 )
 
 type SelfConfig struct {
-	Address  string
-	LogLevel string
+	Address       string
+	LogLevel      string
+	StoreInterval time.Duration
+	StoreFilePath string
+	Restore       bool
 }
 
 type Config struct {
@@ -32,12 +40,35 @@ func NewConfig() *Config {
 		"log level",
 	)
 
+	storeInterval := flag.Int(
+		"i",
+		_storeIntervalInSecs,
+		"store interval (seconds)",
+	)
+
+	storeFilePath := flag.String(
+		"f",
+		_storeFilePath,
+		"store file path",
+	)
+
+	restore := flag.Bool(
+		"r",
+		_restore,
+		"restore metrics",
+	)
+
 	flag.Parse()
+
+	storeDuration := time.Duration(getEnvInt("STORE_INTERVAL", *storeInterval)) * time.Second
 
 	return &Config{
 		Server: SelfConfig{
-			Address:  getEnv("ADDRESS", *address),
-			LogLevel: getEnv("LOG_LEVEL", *logLevel),
+			Address:       getEnv("ADDRESS", *address),
+			LogLevel:      getEnv("LOG_LEVEL", *logLevel),
+			StoreInterval: storeDuration,
+			StoreFilePath: getEnv("FILE_STORAGE_PATH", *storeFilePath),
+			Restore:       getEnvBool("RESTORE", *restore),
 		},
 	}
 }
@@ -48,4 +79,30 @@ func getEnv(key string, defaultVal string) string {
 	}
 
 	return defaultVal
+}
+
+func getEnvInt(key string, defaultValue int) int {
+	if value, exists := os.LookupEnv(key); exists {
+		val, err := strconv.ParseInt(value, 10, 32)
+		if err != nil {
+			return defaultValue
+		}
+
+		return int(val)
+	}
+
+	return defaultValue
+}
+
+func getEnvBool(key string, defaultValue bool) bool {
+	if value, exists := os.LookupEnv(key); exists {
+		val, err := strconv.ParseBool(value)
+		if err != nil {
+			return defaultValue
+		}
+
+		return val
+	}
+
+	return defaultValue
 }
