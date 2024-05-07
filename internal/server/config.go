@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/kaa-it/go-devops/internal/server/storage/db"
 	"github.com/kaa-it/go-devops/internal/server/storage/memory"
 )
 
@@ -23,8 +24,9 @@ type SelfConfig struct {
 }
 
 type Config struct {
-	Server  SelfConfig
-	Storage memory.StorageConfig
+	Server    SelfConfig
+	Storage   memory.StorageConfig
+	DbStorage db.StorageConfig
 }
 
 func NewConfig() *Config {
@@ -58,6 +60,12 @@ func NewConfig() *Config {
 		"restore metrics",
 	)
 
+	dsn := flag.String(
+		"d",
+		"",
+		"database DSN",
+	)
+
 	flag.Parse()
 
 	storeDuration := time.Duration(getEnvInt("STORE_INTERVAL", *storeInterval)) * time.Second
@@ -71,6 +79,9 @@ func NewConfig() *Config {
 			StoreInterval: storeDuration,
 			StoreFilePath: getEnv("FILE_STORAGE_PATH", *storeFilePath),
 			Restore:       getEnvBool("RESTORE", *restore),
+		},
+		DbStorage: db.StorageConfig{
+			DSN: getEnv("DATABASE_DSN", *dsn),
 		},
 	}
 }

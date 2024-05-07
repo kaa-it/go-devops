@@ -9,14 +9,17 @@ import (
 	"sync"
 	"syscall"
 
+	serviceRest "github.com/kaa-it/go-devops/internal/server/http/rest/service"
 	updatingRest "github.com/kaa-it/go-devops/internal/server/http/rest/updating"
 	viewingRest "github.com/kaa-it/go-devops/internal/server/http/rest/viewing"
 	"github.com/kaa-it/go-devops/internal/server/logger"
 
+	"github.com/kaa-it/go-devops/internal/server/service"
 	"github.com/kaa-it/go-devops/internal/server/viewing"
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/kaa-it/go-devops/internal/server/storage/db"
 	"github.com/kaa-it/go-devops/internal/server/storage/memory"
 	"github.com/kaa-it/go-devops/internal/server/updating"
 )
@@ -57,6 +60,17 @@ func (s *Server) Run() {
 
 	r.Mount("/update", updatingHandler.Route())
 	r.Mount("/", viewingHandler.Route())
+
+	if s.config.DbStorage.DSN != "" {
+		storage, err := db.NewStorage(&s.config.DbStorage)
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+
+		service := service.NewService(storage)
+		serviceHandler := serviceRest.NewHandler(service, log)
+		r.Mount("/ping", serviceHandler.Route())
+	}
 
 	server := &http.Server{
 		Addr:    s.config.Server.Address,

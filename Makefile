@@ -2,6 +2,9 @@ build:
 	go build -o agent ./cmd/agent ;
 	go build -o server ./cmd/server ;
 
+pg:
+	docker compose up -d	
+
 test:
 	go vet --vettool=$(which statictest) ./... ;
 	metricstest -test.v -test.run=^TestIteration1$$ \
