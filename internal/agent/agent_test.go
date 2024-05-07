@@ -16,7 +16,7 @@ func TestAgent(t *testing.T) {
 
 	var metricCounter int
 
-	mux.HandleFunc("/update/{category}/{name}/{value}", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/update/", func(w http.ResponseWriter, r *http.Request) {
 		metricCounter++
 	})
 

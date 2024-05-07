@@ -2,15 +2,17 @@ package server
 
 import (
 	"context"
-	"log"
+	"errors"
+	updatingRest "github.com/kaa-it/go-devops/internal/server/http/rest/updating"
+	viewingRest "github.com/kaa-it/go-devops/internal/server/http/rest/viewing"
+	"github.com/kaa-it/go-devops/internal/server/logger"
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/kaa-it/go-devops/internal/server/viewing"
-
-	"github.com/kaa-it/go-devops/internal/server/http/rest"
 
 	"github.com/go-chi/chi/v5"
 
@@ -29,18 +31,26 @@ func New(config *Config) *Server {
 }
 
 func (s *Server) Run() {
-	log.Println("Server started")
+	log, err := logger.New(s.config.Server.LogLevel)
+	if err != nil {
+		panic(err)
+	}
+
+	log.Info("Server started")
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 
-	storage := memory.NewStorage()
+	storage, err := memory.NewStorage(&s.config.Storage)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 
 	updater := updating.NewService(storage)
 	viewer := viewing.NewService(storage)
 
-	updatingHandler := rest.NewUpdatingHandler(updater)
-	viewingHandler := rest.NewViewingHandler(viewer)
+	updatingHandler := updatingRest.NewHandler(updater, log)
+	viewingHandler := viewingRest.NewHandler(viewer, log)
 
 	r := chi.NewRouter()
 
@@ -52,15 +62,29 @@ func (s *Server) Run() {
 		Handler: r,
 	}
 
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+
 	go func() {
 		<-c
 		if err := server.Shutdown(context.Background()); err != nil {
-			log.Println(err)
+			log.Error(err.Error())
 		}
+
+		wg.Done()
 	}()
 
-	err := server.ListenAndServe()
-	if err != nil {
-		log.Fatal(err)
+	err = server.ListenAndServe()
+	if !errors.Is(err, http.ErrServerClosed) {
+		log.Fatal(err.Error())
+	}
+
+	wg.Wait()
+
+	storage.Wait()
+
+	if err := storage.Save(); err != nil {
+		log.Fatal(err.Error())
 	}
 }

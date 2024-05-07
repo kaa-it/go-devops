@@ -1,15 +1,18 @@
 package agent
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/kaa-it/go-devops/internal/api"
 	"log"
 	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
-	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -151,13 +154,30 @@ func (a *Agent) report() {
 	log.Println("Report done")
 }
 
-func (a *Agent) sendMetric(url string) error {
+func (a *Agent) sendMetric(m api.Metrics) error {
 	req := a.client.R()
 	req.Method = http.MethodPost
+
+	url := fmt.Sprintf("http://%s/update/", a.config.Server.Address)
+
 	req.URL = url
 
-	req.Header.Set("Content-Type", "text/plain")
-	req.Header.Set("Content-Length", "0")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
+
+	buf := bytes.NewBuffer(nil)
+	zw := gzip.NewWriter(buf)
+
+	enc := json.NewEncoder(zw)
+	if err := enc.Encode(m); err != nil {
+		return fmt.Errorf("failed to encode metric for %s: %w", url, err)
+	}
+
+	if err := zw.Close(); err != nil {
+		return fmt.Errorf("failed to close gzip writer: %w", err)
+	}
+
+	req.SetBody(buf)
 
 	resp, err := req.Send()
 	if err != nil {
@@ -172,29 +192,21 @@ func (a *Agent) sendMetric(url string) error {
 }
 
 func (a *Agent) sendGauge(name string, value float64) error {
-	strVal := strconv.FormatFloat(value, 'f', 4, 64)
+	m := api.Metrics{
+		ID:    name,
+		MType: api.GaugeType,
+		Value: &value,
+	}
 
-	url := fmt.Sprintf(
-		"http://%s/update/%s/%s/%s",
-		a.config.Server.Address,
-		"gauge",
-		name,
-		strVal,
-	)
-
-	return a.sendMetric(url)
+	return a.sendMetric(m)
 }
 
 func (a *Agent) sendCounter(name string, value int64) error {
-	strVal := strconv.FormatInt(value, 10)
+	m := api.Metrics{
+		ID:    name,
+		MType: api.CounterType,
+		Delta: &value,
+	}
 
-	url := fmt.Sprintf(
-		"http://%s/update/%s/%s/%s",
-		a.config.Server.Address,
-		"counter",
-		name,
-		strVal,
-	)
-
-	return a.sendMetric(url)
+	return a.sendMetric(m)
 }
