@@ -10,10 +10,13 @@ jobs:
 
   statictest:
     runs-on: ubuntu-latest
-    container: vektra/mockery:v2.43
+    container: golang:latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+
+      - name: install mockery
+        run: go install github.com/vektra/mockery/v2@v2.43.0  
 
       - name: start mockery
         run: mockery
