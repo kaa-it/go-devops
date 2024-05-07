@@ -2,10 +2,11 @@ package server
 
 import (
 	"flag"
-	"github.com/kaa-it/go-devops/internal/server/storage/memory"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/kaa-it/go-devops/internal/server/storage/memory"
 )
 
 const (

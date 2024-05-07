@@ -3,14 +3,15 @@ package viewing
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-chi/chi/v5"
-	"github.com/kaa-it/go-devops/internal/api"
-	"github.com/kaa-it/go-devops/internal/gzip"
-	"github.com/kaa-it/go-devops/internal/server/viewing"
 	"html/template"
 	"log"
 	"net/http"
 	"strconv"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/kaa-it/go-devops/internal/api"
+	"github.com/kaa-it/go-devops/internal/gzip"
+	"github.com/kaa-it/go-devops/internal/server/viewing"
 )
 
 type Logger interface {

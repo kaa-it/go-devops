@@ -3,12 +3,13 @@ package updating
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/kaa-it/go-devops/internal/api"
 	"github.com/kaa-it/go-devops/internal/gzip"
 	"github.com/kaa-it/go-devops/internal/server/updating"
-	"net/http"
-	"strconv"
 )
 
 type Logger interface {

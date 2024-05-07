@@ -4,14 +4,15 @@ import (
 	gzipLib "compress/gzip"
 	"errors"
 	"fmt"
-	"github.com/kaa-it/go-devops/internal/gzip"
-	"github.com/kaa-it/go-devops/internal/server/viewing"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
+
+	"github.com/kaa-it/go-devops/internal/gzip"
+	"github.com/kaa-it/go-devops/internal/server/viewing"
+	"github.com/stretchr/testify/require"
 
 	"github.com/go-chi/chi/v5"
 

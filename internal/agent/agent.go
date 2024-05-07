@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/kaa-it/go-devops/internal/api"
 	"log"
 	"math/rand"
 	"net/http"
@@ -16,6 +15,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/kaa-it/go-devops/internal/api"
 
 	"github.com/go-resty/resty/v2"
 )

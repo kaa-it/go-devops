@@ -3,14 +3,15 @@ package server
 import (
 	"context"
 	"errors"
-	updatingRest "github.com/kaa-it/go-devops/internal/server/http/rest/updating"
-	viewingRest "github.com/kaa-it/go-devops/internal/server/http/rest/viewing"
-	"github.com/kaa-it/go-devops/internal/server/logger"
 	"net/http"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+
+	updatingRest "github.com/kaa-it/go-devops/internal/server/http/rest/updating"
+	viewingRest "github.com/kaa-it/go-devops/internal/server/http/rest/viewing"
+	"github.com/kaa-it/go-devops/internal/server/logger"
 
 	"github.com/kaa-it/go-devops/internal/server/viewing"
 

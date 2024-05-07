@@ -7,7 +7,7 @@ import (
 
 type Reader struct {
 	r  io.ReadCloser
-	zr *gzip.Reader
+	zr gzip.Reader
 }
 
 func NewReader(r io.ReadCloser) (*Reader, error) {
@@ -16,7 +16,7 @@ func NewReader(r io.ReadCloser) (*Reader, error) {
 		return nil, err
 	}
 
-	return &Reader{r: r, zr: zr}, nil
+	return &Reader{r: r, zr: *zr}, nil
 }
 
 func (gr *Reader) Read(p []byte) (n int, err error) {
