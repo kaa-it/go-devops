@@ -61,8 +61,8 @@ func (s *Server) Run() {
 	r.Mount("/update", updatingHandler.Route())
 	r.Mount("/", viewingHandler.Route())
 
-	if s.config.DbStorage.DSN != "" {
-		storage, err := db.NewStorage(&s.config.DbStorage)
+	if s.config.DBStorage.DSN != "" {
+		storage, err := db.NewStorage(&s.config.DBStorage)
 		if err != nil {
 			log.Fatal(err.Error())
 		}

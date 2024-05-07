@@ -26,7 +26,7 @@ type SelfConfig struct {
 type Config struct {
 	Server    SelfConfig
 	Storage   memory.StorageConfig
-	DbStorage db.StorageConfig
+	DBStorage db.StorageConfig
 }
 
 func NewConfig() *Config {
@@ -80,7 +80,7 @@ func NewConfig() *Config {
 			StoreFilePath: getEnv("FILE_STORAGE_PATH", *storeFilePath),
 			Restore:       getEnvBool("RESTORE", *restore),
 		},
-		DbStorage: db.StorageConfig{
+		DBStorage: db.StorageConfig{
 			DSN: getEnv("DATABASE_DSN", *dsn),
 		},
 	}
