@@ -67,6 +67,8 @@ func (s *Server) Run() {
 			log.Fatal(err.Error())
 		}
 
+		defer storage.Close()
+
 		service := service.NewService(storage)
 		serviceHandler := serviceRest.NewHandler(service, log)
 		r.Mount("/ping", serviceHandler.Route())

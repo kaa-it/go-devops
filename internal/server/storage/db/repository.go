@@ -45,7 +45,5 @@ func (s *Storage) Close() {
 }
 
 func (s *Storage) Ping() error {
-	var greeting string
-
-	return s.dbpool.QueryRow(context.Background(), "select 'Hello, world!'").Scan(&greeting)
+	return s.dbpool.Ping(context.Background())
 }
