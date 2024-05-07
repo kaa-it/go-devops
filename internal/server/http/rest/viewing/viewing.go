@@ -137,6 +137,7 @@ func (h *Handler) value(w http.ResponseWriter, r *http.Request) {
 	category := chi.URLParam(r, "category")
 
 	if category != "gauge" && category != "counter" {
+		h.l.Error(fmt.Sprintf("metric type %s is not supported", category))
 		http.Error(w, "Metric type is not supported", http.StatusNotImplemented)
 		return
 	}
@@ -147,6 +148,7 @@ func (h *Handler) value(w http.ResponseWriter, r *http.Request) {
 	case "gauge":
 		value, err := h.a.Gauge(name)
 		if err != nil {
+			h.l.Error(fmt.Sprintf("failed to get gauge with name %s: %v", name, err))
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
@@ -162,6 +164,7 @@ func (h *Handler) value(w http.ResponseWriter, r *http.Request) {
 	case "counter":
 		value, err := h.a.Counter(name)
 		if err != nil {
+			h.l.Error(fmt.Sprintf("failed to get counter with name %s: %v", name, err))
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
@@ -197,6 +200,7 @@ func (h *Handler) valueJSON(w http.ResponseWriter, r *http.Request) {
 	case api.GaugeType:
 		value, err := h.a.Gauge(req.ID)
 		if err != nil {
+			h.l.Error(fmt.Sprintf("failed to get gauge with ID %s: %v", req.ID, err))
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
@@ -206,6 +210,7 @@ func (h *Handler) valueJSON(w http.ResponseWriter, r *http.Request) {
 	case api.CounterType:
 		value, err := h.a.Counter(req.ID)
 		if err != nil {
+			h.l.Error(fmt.Sprintf("failed to get counter with ID %s: %v", req.ID, err))
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}

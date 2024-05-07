@@ -1,0 +1,19 @@
+with-expecter: True
+inpackage: True
+dir: "{{.InterfaceDir}}"
+mockname: "Mock{{.InterfaceName}}"
+outpkg: "{{.PackageName}}"
+filename: "mock_{{.InterfaceName}}.go"
+packages:
+  github.com/kaa-it/go-devops/internal/server/viewing:
+    interfaces:
+      Service:
+  github.com/kaa-it/go-devops/internal/server/updating:
+    interfaces:
+      Service:
+  github.com/kaa-it/go-devops/internal/server/http/rest/viewing:
+    interfaces:
+      Logger:
+  github.com/kaa-it/go-devops/internal/server/http/rest/updating:
+    interfaces:
+      Logger:

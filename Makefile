@@ -1,18 +1,18 @@
 build:
-	go build -o agent ./cmd/agent
-	go build -o server ./cmd/server
+	go build -o agent ./cmd/agent ;
+	go build -o server ./cmd/server ;
 
 test:
-	go vet --vettool=$(which statictest) ./...
+	go vet --vettool=$(which statictest) ./... ;
 	metricstest -test.v -test.run=^TestIteration1$$ \
-                -binary-path=./server
+                -binary-path=./server ;
 	metricstest -test.v -test.run=^TestIteration2[AB]*$$ \
                 -source-path=. \
-                -agent-binary-path=./agent
+                -agent-binary-path=./agent ;
 	metricstest -test.v -test.run=^TestIteration3[AB]*$$ \
                 -source-path=. \
                 -agent-binary-path=./agent \
-                -binary-path=./server
+                -binary-path=./server ;
 	export SERVER_PORT=9090 && \
     export ADDRESS="localhost:9090" && \
     export TEMP_FILE=test && \
@@ -20,7 +20,7 @@ test:
 		-agent-binary-path=./agent \
 		-binary-path=./server \
 		-server-port=9090 \
-		-source-path=.
+		-source-path=. ;
 	export SERVER_PORT=9090 && \
     export ADDRESS="localhost:9090" && \
     export TEMP_FILE=test && \
@@ -28,7 +28,7 @@ test:
 	  -agent-binary-path=./agent \
 	  -binary-path=./server \
 	  -server-port=9090 \
-	  -source-path=.
+	  -source-path=. ;
 	export SERVER_PORT=9090 && \
     export ADDRESS="localhost:9090" && \
     export TEMP_FILE=test && \
@@ -36,7 +36,7 @@ test:
                 -agent-binary-path=./agent \
                 -binary-path=./server \
                 -server-port=9090 \
-                -source-path=.
+                -source-path=. ;
 	export SERVER_PORT=9090 && \
     export ADDRESS="localhost:9090" && \
     export TEMP_FILE=test && \
@@ -44,7 +44,7 @@ test:
                 -agent-binary-path=./agent \
                 -binary-path=./server \
                 -server-port=9090 \
-                -source-path=.
+                -source-path=. ;
 	export SERVER_PORT=9090 && \
     export ADDRESS="localhost:9090" && \
     export TEMP_FILE=test && \
@@ -52,7 +52,7 @@ test:
                 -agent-binary-path=./agent \
                 -binary-path=./server \
                 -server-port=9090 \
-                -source-path=.
+                -source-path=. ;
 	export SERVER_PORT=9898 && \
 	export ADDRESS="localhost:9898" && \
 	export TEMP_FILE=/tmp/123.json && \
@@ -61,4 +61,4 @@ test:
 	-binary-path=./server \
 	-file-storage-path=/tmp/123.json \
 	-server-port=9898 \
-	-source-path=.
+	-source-path=. ;
