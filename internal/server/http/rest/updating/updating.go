@@ -48,6 +48,8 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 
 	valueStr := chi.URLParam(r, "value")
 
+	ctx := r.Context()
+
 	switch category {
 	case "gauge":
 		value, err := strconv.ParseFloat(valueStr, 64)
@@ -57,7 +59,7 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := h.a.UpdateGauge(name, value); err != nil {
+		if err := h.a.UpdateGauge(ctx, name, value); err != nil {
 			h.l.Error(err.Error())
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -65,11 +67,12 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	case "counter":
 		value, err := strconv.ParseInt(valueStr, 10, 64)
 		if err != nil {
+			h.l.Error("Invalid metric value")
 			http.Error(w, "Invalid metric value", http.StatusBadRequest)
 			return
 		}
 
-		if err := h.a.UpdateCounter(name, value); err != nil {
+		if err := h.a.UpdateCounter(ctx, name, value); err != nil {
 			h.l.Error(err.Error())
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -95,6 +98,8 @@ func (h *Handler) updateJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ctx := r.Context()
+
 	switch req.MType {
 	case api.GaugeType:
 		if req.Value == nil {
@@ -103,13 +108,13 @@ func (h *Handler) updateJSON(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := h.a.UpdateGauge(req.ID, *req.Value); err != nil {
+		if err := h.a.UpdateGauge(ctx, req.ID, *req.Value); err != nil {
 			h.l.Error(err.Error())
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		val, err := h.a.Gauge(req.ID)
+		val, err := h.a.Gauge(ctx, req.ID)
 		if err != nil {
 			h.l.Error(fmt.Sprintf("failed to get %s metric: %v", req.ID, err))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -125,13 +130,13 @@ func (h *Handler) updateJSON(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := h.a.UpdateCounter(req.ID, *req.Delta); err != nil {
+		if err := h.a.UpdateCounter(ctx, req.ID, *req.Delta); err != nil {
 			h.l.Error(err.Error())
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		val, err := h.a.Counter(req.ID)
+		val, err := h.a.Counter(ctx, req.ID)
 		if err != nil {
 			h.l.Error(fmt.Sprintf("failed to get %s metric: %v", req.ID, err))
 			http.Error(w, err.Error(), http.StatusInternalServerError)

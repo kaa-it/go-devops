@@ -1,11 +1,13 @@
 package service
 
+import "context"
+
 type Service interface {
-	Ping() error
+	Ping(ctx context.Context) error
 }
 
 type Repository interface {
-	Ping() error
+	Ping(ctx context.Context) error
 }
 
 type service struct {
@@ -16,6 +18,6 @@ func NewService(r Repository) Service {
 	return &service{r}
 }
 
-func (s *service) Ping() error {
-	return s.r.Ping()
+func (s *service) Ping(ctx context.Context) error {
+	return s.r.Ping(ctx)
 }

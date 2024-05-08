@@ -38,7 +38,7 @@ func (h *Handler) Route() *chi.Mux {
 	return mux
 }
 
-func (h *Handler) home(w http.ResponseWriter, _ *http.Request) {
+func (h *Handler) home(w http.ResponseWriter, r *http.Request) {
 	const templ = `
 		<table style='
 			border-collapse: collapse;
@@ -107,12 +107,14 @@ func (h *Handler) home(w http.ResponseWriter, _ *http.Request) {
 	`
 	t := template.Must(template.New("metrics").Parse(templ))
 
-	gauges, err := h.a.Gauges()
+	ctx := r.Context()
+
+	gauges, err := h.a.Gauges(ctx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	counters, err := h.a.Counters()
+	counters, err := h.a.Counters(ctx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -144,9 +146,11 @@ func (h *Handler) value(w http.ResponseWriter, r *http.Request) {
 
 	name := chi.URLParam(r, "name")
 
+	ctx := r.Context()
+
 	switch category {
 	case "gauge":
-		value, err := h.a.Gauge(name)
+		value, err := h.a.Gauge(ctx, name)
 		if err != nil {
 			h.l.Error(fmt.Sprintf("failed to get gauge with name %s: %v", name, err))
 			http.Error(w, err.Error(), http.StatusNotFound)
@@ -162,7 +166,7 @@ func (h *Handler) value(w http.ResponseWriter, r *http.Request) {
 			log.Println(err)
 		}
 	case "counter":
-		value, err := h.a.Counter(name)
+		value, err := h.a.Counter(ctx, name)
 		if err != nil {
 			h.l.Error(fmt.Sprintf("failed to get counter with name %s: %v", name, err))
 			http.Error(w, err.Error(), http.StatusNotFound)
@@ -196,9 +200,11 @@ func (h *Handler) valueJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ctx := r.Context()
+
 	switch req.MType {
 	case api.GaugeType:
-		value, err := h.a.Gauge(req.ID)
+		value, err := h.a.Gauge(ctx, req.ID)
 		if err != nil {
 			h.l.Error(fmt.Sprintf("failed to get gauge with ID %s: %v", req.ID, err))
 			http.Error(w, err.Error(), http.StatusNotFound)
@@ -208,7 +214,7 @@ func (h *Handler) valueJSON(w http.ResponseWriter, r *http.Request) {
 		req.Value = &value
 
 	case api.CounterType:
-		value, err := h.a.Counter(req.ID)
+		value, err := h.a.Counter(ctx, req.ID)
 		if err != nil {
 			h.l.Error(fmt.Sprintf("failed to get counter with ID %s: %v", req.ID, err))
 			http.Error(w, err.Error(), http.StatusNotFound)

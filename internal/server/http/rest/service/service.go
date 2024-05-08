@@ -31,7 +31,9 @@ func (h *Handler) Route() *chi.Mux {
 }
 
 func (h *Handler) ping(w http.ResponseWriter, r *http.Request) {
-	err := h.s.Ping()
+	ctx := r.Context()
+
+	err := h.s.Ping(ctx)
 	if err != nil {
 		h.l.Error(fmt.Sprintf("ping failed: %v", err))
 		http.Error(w, "Ping failed", http.StatusInternalServerError)

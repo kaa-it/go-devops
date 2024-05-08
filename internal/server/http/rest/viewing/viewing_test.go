@@ -93,23 +93,23 @@ func TestViewHandler(t *testing.T) {
 			switch test.metricType {
 			case "gauge":
 				if test.checkServiceError {
-					s.On("Gauge", test.metricName).Return(
+					s.On("Gauge", mock.Anything, test.metricName).Return(
 						float64(0),
 						errors.New("gauge not found"),
 					)
 				} else {
 					value, _ := strconv.ParseFloat(test.metricValue, 64)
-					s.On("Gauge", test.metricName).Return(value, nil)
+					s.On("Gauge", mock.Anything, test.metricName).Return(value, nil)
 				}
 			case "counter":
 				if test.checkServiceError {
-					s.On("Counter", test.metricName).Return(
+					s.On("Counter", mock.Anything, test.metricName).Return(
 						int64(0),
 						errors.New("counter not found"),
 					)
 				} else {
 					value, _ := strconv.ParseInt(test.metricValue, 10, 64)
-					s.On("Counter", test.metricName).Return(value, nil)
+					s.On("Counter", mock.Anything, test.metricName).Return(value, nil)
 				}
 			}
 
@@ -152,10 +152,10 @@ func TestViewHandler(t *testing.T) {
 
 			switch test.metricType {
 			case "gauge":
-				s.AssertCalled(t, "Gauge", test.metricName)
+				s.AssertCalled(t, "Gauge", mock.Anything, test.metricName)
 				s.AssertNumberOfCalls(t, "Gauge", 1)
 			case "counter":
-				s.AssertCalled(t, "Counter", test.metricName)
+				s.AssertCalled(t, "Counter", mock.Anything, test.metricName)
 				s.AssertNumberOfCalls(t, "Counter", 1)
 			}
 		})
@@ -241,23 +241,23 @@ func TestViewJSONHandler(t *testing.T) {
 			switch test.metricType {
 			case "gauge":
 				if test.checkServiceError {
-					s.On("Gauge", test.metricName).Return(
+					s.On("Gauge", mock.Anything, test.metricName).Return(
 						float64(0),
 						errors.New("gauge not found"),
 					)
 				} else {
 					value, _ := strconv.ParseFloat(test.metricValue, 64)
-					s.On("Gauge", test.metricName).Return(value, nil)
+					s.On("Gauge", mock.Anything, test.metricName).Return(value, nil)
 				}
 			case "counter":
 				if test.checkServiceError {
-					s.On("Counter", test.metricName).Return(
+					s.On("Counter", mock.Anything, test.metricName).Return(
 						int64(0),
 						errors.New("counter not found"),
 					)
 				} else {
 					value, _ := strconv.ParseInt(test.metricValue, 10, 64)
-					s.On("Counter", test.metricName).Return(value, nil)
+					s.On("Counter", mock.Anything, test.metricName).Return(value, nil)
 				}
 			}
 
@@ -309,10 +309,10 @@ func TestViewJSONHandler(t *testing.T) {
 
 			switch test.metricType {
 			case "gauge":
-				s.AssertCalled(t, "Gauge", test.metricName)
+				s.AssertCalled(t, "Gauge", mock.Anything, test.metricName)
 				s.AssertNumberOfCalls(t, "Gauge", 1)
 			case "counter":
-				s.AssertCalled(t, "Counter", test.metricName)
+				s.AssertCalled(t, "Counter", mock.Anything, test.metricName)
 				s.AssertNumberOfCalls(t, "Counter", 1)
 			}
 		})
@@ -326,7 +326,7 @@ func TestViewJSONGzip(t *testing.T) {
 
 		s := viewing.NewMockService(t)
 
-		s.On("Gauge", "test").Return(45.2, nil)
+		s.On("Gauge", mock.Anything, "test").Return(45.2, nil)
 
 		var h *Handler
 
@@ -372,7 +372,7 @@ func TestViewJSONGzip(t *testing.T) {
 
 		l.AssertNumberOfCalls(t, "RequestLogger", 3)
 
-		s.AssertCalled(t, "Gauge", "test")
+		s.AssertCalled(t, "Gauge", mock.Anything, "test")
 		s.AssertNumberOfCalls(t, "Gauge", 1)
 	})
 }
