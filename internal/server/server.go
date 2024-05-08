@@ -115,6 +115,7 @@ func (s *Server) initMemory(log *logger.Logger) (*chi.Mux, *memory.Storage, erro
 
 	r.Mount("/update", updatingHandler.Route())
 	r.Mount("/", viewingHandler.Route())
+	r.Mount("/updates", updatingHandler.UpdatesRoute())
 
 	return r, storage, nil
 }
