@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5"
+	"github.com/kaa-it/go-devops/internal/api"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -88,7 +89,7 @@ func (s *Storage) UpdateCounter(ctx context.Context, name string, value int64) e
 		ctx,
 		"INSERT INTO counters (name, value) VALUES (@name, @value)"+
 			" ON CONFLICT (name) DO UPDATE"+
-			" SET value = EXCLUDED.value",
+			" SET value = EXCLUDED.value + counters.value",
 		pgx.NamedArgs{
 			"name":  name,
 			"value": value,
@@ -204,4 +205,38 @@ func (s *Storage) TotalGauges(ctx context.Context) (int, error) {
 	).Scan(&value)
 
 	return value, err
+}
+
+func (s *Storage) Updates(ctx context.Context, metrics []api.Metrics) error {
+	queryGauge := "INSERT INTO gauges (name, value) VALUES (@name, @value)" +
+		" ON CONFLICT (name) DO UPDATE" +
+		" SET value = EXCLUDED.value"
+
+	queryCounters := "INSERT INTO counters (name, value) VALUES (@name, @value)" +
+		" ON CONFLICT (name) DO UPDATE" +
+		" SET value = EXCLUDED.value + counters.value"
+
+	batch := &pgx.Batch{}
+	for _, metric := range metrics {
+		if metric.MType == api.CounterType {
+			args := pgx.NamedArgs{
+				"name":  metric.ID,
+				"value": metric.Delta,
+			}
+			batch.Queue(queryCounters, args)
+		} else {
+			args := pgx.NamedArgs{
+				"name":  metric.ID,
+				"value": metric.Value,
+			}
+			batch.Queue(queryGauge, args)
+		}
+	}
+
+	results := s.dbpool.SendBatch(ctx, batch)
+	defer results.Close()
+
+	_, err := results.Exec()
+
+	return err
 }

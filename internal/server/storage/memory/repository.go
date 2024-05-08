@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/kaa-it/go-devops/internal/api"
 	"os"
 	"sync"
 	"time"
@@ -190,6 +191,27 @@ func (s *Storage) Save() error {
 	defer s.mu.RUnlock()
 
 	return s.save()
+}
+
+func (s *Storage) Updates(ctx context.Context, metrics []api.Metrics) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, m := range metrics {
+		if m.MType == api.CounterType {
+			s.counters[m.ID] += *m.Delta
+		} else {
+			s.gauges[m.ID] = *m.Value
+		}
+	}
+
+	if s.config.StoreInterval == 0 {
+		if err := s.save(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (s *Storage) save() error {

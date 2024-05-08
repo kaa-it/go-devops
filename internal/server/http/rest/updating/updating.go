@@ -35,6 +35,14 @@ func (h *Handler) Route() *chi.Mux {
 	return mux
 }
 
+func (h *Handler) UpdatesRoute() *chi.Mux {
+	mux := chi.NewRouter()
+
+	mux.Post("/", h.l.RequestLogger(gzip.Middleware(h.updates)))
+
+	return mux
+}
+
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	category := chi.URLParam(r, "category")
 
@@ -158,4 +166,37 @@ func (h *Handler) updateJSON(w http.ResponseWriter, r *http.Request) {
 		h.l.Error(fmt.Sprintf("failed encoding body for update: %v", err))
 		return
 	}
+}
+
+func (h *Handler) updates(w http.ResponseWriter, r *http.Request) {
+	var req []api.Metrics
+
+	dec := json.NewDecoder(r.Body)
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			h.l.Error(fmt.Sprintf("failed to close body: %v", err))
+		}
+	}()
+
+	if err := dec.Decode(&req); err != nil {
+		h.l.Error(fmt.Sprintf("failed decoding body for updates: %v", err))
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if len(req) == 0 {
+		h.l.Error("metric batch is empty")
+		http.Error(w, "Metric batch is empty", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+
+	if err := h.a.Updates(ctx, req); err != nil {
+		h.l.Error(fmt.Sprintf("batch update failed: %v", err.Error()))
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

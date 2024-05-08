@@ -1,12 +1,16 @@
 package updating
 
-import "context"
+import (
+	"context"
+	"github.com/kaa-it/go-devops/internal/api"
+)
 
 type Service interface {
 	UpdateGauge(ctx context.Context, name string, value float64) error
 	UpdateCounter(ctx context.Context, name string, value int64) error
 	Gauge(ctx context.Context, name string) (float64, error)
 	Counter(ctx context.Context, name string) (int64, error)
+	Updates(ctx context.Context, metrics []api.Metrics) error
 }
 
 type Repository interface {
@@ -14,6 +18,7 @@ type Repository interface {
 	UpdateCounter(ctx context.Context, name string, value int64) error
 	Gauge(ctx context.Context, name string) (float64, error)
 	Counter(ctx context.Context, name string) (int64, error)
+	Updates(ctx context.Context, metrics []api.Metrics) error
 }
 
 type service struct {
@@ -38,4 +43,8 @@ func (s *service) Gauge(ctx context.Context, name string) (float64, error) {
 
 func (s *service) Counter(ctx context.Context, name string) (int64, error) {
 	return s.r.Counter(ctx, name)
+}
+
+func (s *service) Updates(ctx context.Context, metrics []api.Metrics) error {
+	return s.r.Updates(ctx, metrics)
 }

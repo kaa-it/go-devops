@@ -136,30 +136,31 @@ func (a *Agent) poll() {
 }
 
 func (a *Agent) report() {
+	var metrics []api.Metrics
 	a.storage.ForEachGauge(func(key string, value float64) {
-		if err := a.sendGauge(key, value); err != nil {
-			log.Println(err)
-		}
+		a.applyGauge(key, value, &metrics)
 	})
 
 	a.storage.ForEachCounter(func(key string, value int64) {
-		if err := a.sendCounter(key, value); err != nil {
-			log.Println(err)
-		}
+		a.applyCounter(key, value, &metrics)
 
 		// Subtract sent value to take into account
 		// possible counter updates after sending
 		a.storage.UpdateCounter(key, -value)
 	})
 
+	if err := a.sendMetrics(metrics); err != nil {
+		log.Println(err)
+	}
+
 	log.Println("Report done")
 }
 
-func (a *Agent) sendMetric(m api.Metrics) error {
+func (a *Agent) sendMetrics(metrics []api.Metrics) error {
 	req := a.client.R()
 	req.Method = http.MethodPost
 
-	url := fmt.Sprintf("http://%s/update/", a.config.Server.Address)
+	url := fmt.Sprintf("http://%s/updates/", a.config.Server.Address)
 
 	req.URL = url
 
@@ -170,7 +171,7 @@ func (a *Agent) sendMetric(m api.Metrics) error {
 	zw := gzip.NewWriter(buf)
 
 	enc := json.NewEncoder(zw)
-	if err := enc.Encode(m); err != nil {
+	if err := enc.Encode(metrics); err != nil {
 		return fmt.Errorf("failed to encode metric for %s: %w", url, err)
 	}
 
@@ -192,22 +193,22 @@ func (a *Agent) sendMetric(m api.Metrics) error {
 	return nil
 }
 
-func (a *Agent) sendGauge(name string, value float64) error {
+func (a *Agent) applyGauge(name string, value float64, metrics *[]api.Metrics) {
 	m := api.Metrics{
 		ID:    name,
 		MType: api.GaugeType,
 		Value: &value,
 	}
 
-	return a.sendMetric(m)
+	*metrics = append(*metrics, m)
 }
 
-func (a *Agent) sendCounter(name string, value int64) error {
+func (a *Agent) applyCounter(name string, value int64, metrics *[]api.Metrics) {
 	m := api.Metrics{
 		ID:    name,
 		MType: api.CounterType,
 		Delta: &value,
 	}
 
-	return a.sendMetric(m)
+	*metrics = append(*metrics, m)
 }

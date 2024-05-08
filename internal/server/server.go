@@ -142,6 +142,7 @@ func (s *Server) initDB(log *logger.Logger) (*chi.Mux, *db.Storage, error) {
 	r.Mount("/update", updatingHandler.Route())
 	r.Mount("/", viewingHandler.Route())
 	r.Mount("/ping", serviceHandler.Route())
+	r.Mount("/updates", updatingHandler.UpdatesRoute())
 
 	return r, storage, nil
 }
