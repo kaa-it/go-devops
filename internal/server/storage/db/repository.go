@@ -140,11 +140,11 @@ func (s *Storage) ForEachGauge(ctx context.Context, fn func(name string, value f
 		"SELECT * FROM gauges",
 	)
 
-	defer rows.Close()
-
 	if err != nil {
 		return err
 	}
+
+	defer rows.Close()
 
 	for rows.Next() {
 		var name string
@@ -165,11 +165,11 @@ func (s *Storage) ForEachCounter(ctx context.Context, fn func(name string, value
 		"SELECT * FROM counters",
 	)
 
-	defer rows.Close()
-
 	if err != nil {
 		return err
 	}
+
+	defer rows.Close()
 
 	for rows.Next() {
 		var name string
