@@ -63,7 +63,7 @@ func (s *Storage) Initialize(ctx context.Context) error {
 	_, err = s.dbpool.Exec(
 		ctx,
 		"CREATE TABLE IF NOT EXISTS counters"+
-			" (name TEXT PRIMARY KEY, value INTEGER NOT NULL)",
+			" (name TEXT PRIMARY KEY, value BIGINT NOT NULL)",
 	)
 
 	return err
