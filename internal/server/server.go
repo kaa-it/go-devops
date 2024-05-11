@@ -115,7 +115,7 @@ func (s *Server) initMemory(log *logger.Logger) (*chi.Mux, *memory.Storage, erro
 
 	r.Mount("/update", updatingHandler.Route())
 	r.Mount("/", viewingHandler.Route())
-	r.Mount("/updates", updatingHandler.UpdatesRoute())
+	r.Mount("/updates", updatingHandler.Updates())
 
 	return r, storage, nil
 }
@@ -143,7 +143,7 @@ func (s *Server) initDB(log *logger.Logger) (*chi.Mux, *db.Storage, error) {
 	r.Mount("/update", updatingHandler.Route())
 	r.Mount("/", viewingHandler.Route())
 	r.Mount("/ping", serviceHandler.Route())
-	r.Mount("/updates", updatingHandler.UpdatesRoute())
+	r.Mount("/updates", updatingHandler.Updates())
 
 	return r, storage, nil
 }

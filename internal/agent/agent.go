@@ -138,11 +138,11 @@ func (a *Agent) poll() {
 func (a *Agent) report() {
 	var metrics []api.Metrics
 	a.storage.ForEachGauge(func(key string, value float64) {
-		a.applyGauge(key, value, &metrics)
+		metrics = a.applyGauge(key, value, metrics)
 	})
 
 	a.storage.ForEachCounter(func(key string, value int64) {
-		a.applyCounter(key, value, &metrics)
+		metrics = a.applyCounter(key, value, metrics)
 
 		// Subtract sent value to take into account
 		// possible counter updates after sending
@@ -151,6 +151,7 @@ func (a *Agent) report() {
 
 	if err := a.sendMetrics(metrics); err != nil {
 		log.Println(err)
+		return
 	}
 
 	log.Println("Report done")
@@ -193,22 +194,22 @@ func (a *Agent) sendMetrics(metrics []api.Metrics) error {
 	return nil
 }
 
-func (a *Agent) applyGauge(name string, value float64, metrics *[]api.Metrics) {
+func (a *Agent) applyGauge(name string, value float64, metrics []api.Metrics) []api.Metrics {
 	m := api.Metrics{
 		ID:    name,
 		MType: api.GaugeType,
 		Value: &value,
 	}
 
-	*metrics = append(*metrics, m)
+	return append(metrics, m)
 }
 
-func (a *Agent) applyCounter(name string, value int64, metrics *[]api.Metrics) {
+func (a *Agent) applyCounter(name string, value int64, metrics []api.Metrics) []api.Metrics {
 	m := api.Metrics{
 		ID:    name,
 		MType: api.CounterType,
 		Delta: &value,
 	}
 
-	*metrics = append(*metrics, m)
+	return append(metrics, m)
 }

@@ -7,17 +7,24 @@ import (
 	"time"
 )
 
+const (
+	_retryCount       = 3
+	_retryWaitTime    = time.Second
+	_retryMaxWaitTime = 5 * time.Second
+	_retryDelay       = 2 * time.Second
+)
+
 func main() {
 	_ = godotenv.Load()
 
 	config := agent.NewConfig()
 	client := resty.New()
 
-	client.SetRetryCount(3)
-	client.SetRetryWaitTime(time.Second)
-	client.SetRetryMaxWaitTime(5 * time.Second)
+	client.SetRetryCount(_retryCount)
+	client.SetRetryWaitTime(_retryWaitTime)
+	client.SetRetryMaxWaitTime(_retryMaxWaitTime)
 	client.SetRetryAfter(func(client *resty.Client, resp *resty.Response) (time.Duration, error) {
-		return 2 * time.Second, nil
+		return _retryDelay, nil
 	})
 
 	metricsAgent := agent.New(client, config)

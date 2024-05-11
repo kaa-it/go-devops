@@ -35,12 +35,9 @@ func (h *Handler) Route() *chi.Mux {
 	return mux
 }
 
-func (h *Handler) UpdatesRoute() *chi.Mux {
-	mux := chi.NewRouter()
+func (h *Handler) Updates() http.HandlerFunc {
 
-	mux.Post("/", h.l.RequestLogger(gzip.Middleware(h.updates)))
-
-	return mux
+	return h.l.RequestLogger(gzip.Middleware(h.updates))
 }
 
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
