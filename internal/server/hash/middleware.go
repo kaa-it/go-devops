@@ -9,7 +9,7 @@ import (
 	"net/http"
 )
 
-func Middleware(key string, h http.Handler) http.HandlerFunc {
+func Middleware(key string, h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		hash := r.Header.Get("Hash")
 
