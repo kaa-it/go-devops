@@ -3,19 +3,23 @@ package server
 import (
 	"context"
 	"errors"
-	updatingRest "github.com/kaa-it/go-devops/internal/server/http/rest/updating"
-	viewingRest "github.com/kaa-it/go-devops/internal/server/http/rest/viewing"
-	"github.com/kaa-it/go-devops/internal/server/logger"
 	"net/http"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 
+	serviceRest "github.com/kaa-it/go-devops/internal/server/http/rest/service"
+	updatingRest "github.com/kaa-it/go-devops/internal/server/http/rest/updating"
+	viewingRest "github.com/kaa-it/go-devops/internal/server/http/rest/viewing"
+	"github.com/kaa-it/go-devops/internal/server/logger"
+
+	"github.com/kaa-it/go-devops/internal/server/service"
 	"github.com/kaa-it/go-devops/internal/server/viewing"
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/kaa-it/go-devops/internal/server/storage/db"
 	"github.com/kaa-it/go-devops/internal/server/storage/memory"
 	"github.com/kaa-it/go-devops/internal/server/updating"
 )
@@ -41,21 +45,25 @@ func (s *Server) Run() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 
-	storage, err := memory.NewStorage(&s.config.Storage)
-	if err != nil {
-		log.Fatal(err.Error())
+	var r *chi.Mux
+	var storage *memory.Storage
+
+	if s.config.DBStorage.DSN != "" {
+		var err error
+		var storage *db.Storage
+		r, storage, err = s.initDB(log)
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+
+		defer storage.Close()
+	} else {
+		var err error
+		r, storage, err = s.initMemory(log)
+		if err != nil {
+			log.Fatal(err.Error())
+		}
 	}
-
-	updater := updating.NewService(storage)
-	viewer := viewing.NewService(storage)
-
-	updatingHandler := updatingRest.NewHandler(updater, log)
-	viewingHandler := viewingRest.NewHandler(viewer, log)
-
-	r := chi.NewRouter()
-
-	r.Mount("/update", updatingHandler.Route())
-	r.Mount("/", viewingHandler.Route())
 
 	server := &http.Server{
 		Addr:    s.config.Server.Address,
@@ -82,9 +90,60 @@ func (s *Server) Run() {
 
 	wg.Wait()
 
-	storage.Wait()
+	if storage != nil {
+		storage.Wait()
 
-	if err := storage.Save(); err != nil {
-		log.Fatal(err.Error())
+		if err := storage.Save(); err != nil {
+			log.Fatal(err.Error())
+		}
 	}
+}
+
+func (s *Server) initMemory(log *logger.Logger) (*chi.Mux, *memory.Storage, error) {
+	storage, err := memory.NewStorage(&s.config.Storage)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	updater := updating.NewService(storage)
+	viewer := viewing.NewService(storage)
+
+	updatingHandler := updatingRest.NewHandler(updater, log)
+	viewingHandler := viewingRest.NewHandler(viewer, log)
+
+	r := chi.NewRouter()
+
+	r.Mount("/update", updatingHandler.Route())
+	r.Mount("/", viewingHandler.Route())
+	r.Mount("/updates", updatingHandler.Updates())
+
+	return r, storage, nil
+}
+
+func (s *Server) initDB(log *logger.Logger) (*chi.Mux, *db.Storage, error) {
+	storage, err := db.NewStorage(&s.config.DBStorage)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if err := storage.Initialize(context.Background()); err != nil {
+		return nil, nil, err
+	}
+
+	updater := updating.NewService(storage)
+	viewer := viewing.NewService(storage)
+	service := service.NewService(storage)
+
+	updatingHandler := updatingRest.NewHandler(updater, log)
+	viewingHandler := viewingRest.NewHandler(viewer, log)
+	serviceHandler := serviceRest.NewHandler(service, log)
+
+	r := chi.NewRouter()
+
+	r.Mount("/update", updatingHandler.Route())
+	r.Mount("/", viewingHandler.Route())
+	r.Mount("/ping", serviceHandler.Route())
+	r.Mount("/updates", updatingHandler.Updates())
+
+	return r, storage, nil
 }

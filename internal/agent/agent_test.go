@@ -16,7 +16,7 @@ func TestAgent(t *testing.T) {
 
 	var metricCounter int
 
-	mux.HandleFunc("/update/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/updates/", func(w http.ResponseWriter, r *http.Request) {
 		metricCounter++
 	})
 
@@ -35,7 +35,5 @@ func TestAgent(t *testing.T) {
 
 	agent.report()
 
-	totalMetrics := agent.storage.TotalGauges() + agent.storage.TotalCounters()
-
-	assert.Equal(t, totalMetrics, metricCounter)
+	assert.Equal(t, 1, metricCounter)
 }

@@ -1,0 +1,17 @@
+services:
+  db:
+    image: postgres
+    container_name: go-devops-db
+    restart: always
+    shm_size: 128mb
+    environment:
+      POSTGRES_USER: ak
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: devops
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    ports:
+      - 5432:5432  
+
+volumes:
+  pg-data:

@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,7 +17,7 @@ func TestRepository_UpdateGauge(t *testing.T) {
 
 		assert.NoError(t, err)
 
-		err = s.UpdateGauge("TestMetric", 6.04)
+		err = s.UpdateGauge(context.Background(), "TestMetric", 6.04)
 
 		assert.NoError(t, err)
 
@@ -35,11 +36,11 @@ func TestRepository_UpdateGauge(t *testing.T) {
 
 		assert.NoError(t, err)
 
-		err = s.UpdateGauge("TestMetric", 6.04)
+		err = s.UpdateGauge(context.Background(), "TestMetric", 6.04)
 
 		assert.NoError(t, err)
 
-		err = s.UpdateGauge("TestMetric", 7.04)
+		err = s.UpdateGauge(context.Background(), "TestMetric", 7.04)
 
 		assert.NoError(t, err)
 
@@ -60,7 +61,7 @@ func TestRepository_UpdateCounter(t *testing.T) {
 
 		assert.NoError(t, err)
 
-		err = s.UpdateCounter("TestMetric", 60)
+		err = s.UpdateCounter(context.Background(), "TestMetric", 60)
 
 		assert.NoError(t, err)
 
@@ -79,11 +80,11 @@ func TestRepository_UpdateCounter(t *testing.T) {
 
 		assert.NoError(t, err)
 
-		err = s.UpdateCounter("TestMetric", 60)
+		err = s.UpdateCounter(context.Background(), "TestMetric", 60)
 
 		assert.NoError(t, err)
 
-		err = s.UpdateCounter("TestMetric", 60)
+		err = s.UpdateCounter(context.Background(), "TestMetric", 60)
 
 		assert.NoError(t, err)
 
@@ -109,23 +110,23 @@ func TestRepository_ForEachGauge(t *testing.T) {
 		called += 1
 	}
 
-	err = s.UpdateGauge("TestMetric1", 6.04)
+	err = s.UpdateGauge(context.Background(), "TestMetric1", 6.04)
 
 	assert.NoError(t, err)
 
-	err = s.UpdateGauge("TestMetric2", 7.04)
+	err = s.UpdateGauge(context.Background(), "TestMetric2", 7.04)
 
 	assert.NoError(t, err)
 
-	err = s.UpdateCounter("TestMetric3", 60)
+	err = s.UpdateCounter(context.Background(), "TestMetric3", 60)
 
 	assert.NoError(t, err)
 
-	err = s.UpdateCounter("TestMetric3", 60)
+	err = s.UpdateCounter(context.Background(), "TestMetric3", 60)
 
 	assert.NoError(t, err)
 
-	s.ForEachGauge(mockFn)
+	s.ForEachGauge(context.Background(), mockFn)
 
 	assert.Equal(t, called, 2)
 }
@@ -145,23 +146,23 @@ func TestRepository_ForEachCounter(t *testing.T) {
 		called += 1
 	}
 
-	err = s.UpdateGauge("TestMetric1", 6.04)
+	err = s.UpdateGauge(context.Background(), "TestMetric1", 6.04)
 
 	assert.NoError(t, err)
 
-	err = s.UpdateGauge("TestMetric2", 7.04)
+	err = s.UpdateGauge(context.Background(), "TestMetric2", 7.04)
 
 	assert.NoError(t, err)
 
-	err = s.UpdateCounter("TestMetric3", 60)
+	err = s.UpdateCounter(context.Background(), "TestMetric3", 60)
 
 	assert.NoError(t, err)
 
-	err = s.UpdateCounter("TestMetric3", 60)
+	err = s.UpdateCounter(context.Background(), "TestMetric3", 60)
 
 	assert.NoError(t, err)
 
-	s.ForEachCounter(mockFn)
+	s.ForEachCounter(context.Background(), mockFn)
 
 	assert.Equal(t, called, 1)
 }

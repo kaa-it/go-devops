@@ -4,13 +4,15 @@ import (
 	"bytes"
 	gzipLib "compress/gzip"
 	"fmt"
-	"github.com/kaa-it/go-devops/internal/gzip"
-	"github.com/stretchr/testify/require"
+	"github.com/kaa-it/go-devops/internal/server/updating"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
+
+	"github.com/kaa-it/go-devops/internal/gzip"
+	"github.com/stretchr/testify/require"
 
 	"github.com/go-chi/chi/v5"
 
@@ -18,44 +20,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
-
-type fakeUpdateService struct {
-	mock.Mock
-}
-
-func (s *fakeUpdateService) UpdateGauge(name string, value float64) error {
-	args := s.Called(name, value)
-	return args.Error(0)
-}
-
-func (s *fakeUpdateService) UpdateCounter(name string, value int64) error {
-	args := s.Called(name, value)
-	return args.Error(0)
-}
-
-func (s *fakeUpdateService) Gauge(name string) (float64, error) {
-	args := s.Called(name)
-	return args.Get(0).(float64), args.Error(1)
-}
-
-func (s *fakeUpdateService) Counter(name string) (int64, error) {
-	args := s.Called(name)
-	return args.Get(0).(int64), args.Error(1)
-}
-
-type fakeLogger struct {
-	mock.Mock
-	h http.HandlerFunc
-}
-
-func (l *fakeLogger) RequestLogger(h http.HandlerFunc) http.HandlerFunc {
-	args := l.Called(h)
-	return args.Get(0).(func(w http.ResponseWriter, r *http.Request))
-}
-
-func (l *fakeLogger) Error(args ...interface{}) {
-	_ = l.Called(args...)
-}
 
 func TestUpdateHandler(t *testing.T) {
 	type want struct {
@@ -94,10 +58,11 @@ func TestUpdateHandler(t *testing.T) {
 			},
 		},
 		{
-			name:        "metric type is not supported",
-			metricType:  "test",
-			metricName:  "test",
-			metricValue: "4.5",
+			name:             "metric type is not supported",
+			metricType:       "test",
+			metricName:       "test",
+			metricValue:      "4.5",
+			checkServiceCall: true,
 			want: want{
 				code:     http.StatusNotImplemented,
 				response: "Metric type is not supported\n",
@@ -127,20 +92,28 @@ func TestUpdateHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			s := &fakeUpdateService{}
-			s.On("UpdateGauge", mock.Anything, mock.Anything).Return(nil)
-			s.On("UpdateCounter", mock.Anything, mock.Anything).Return(nil)
+			s := updating.NewMockService(t)
+			if test.checkServiceCall {
+				switch test.metricType {
+				case "gauge":
+					s.On("UpdateGauge", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				case "counter":
+					s.On("UpdateCounter", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				}
+			}
 
-			l := &fakeLogger{}
-			l.On("RequestLogger", mock.Anything).Return(func(w http.ResponseWriter, r *http.Request) {
-				l.h.ServeHTTP(w, r)
-			})
+			var h *Handler
 
-			l.On("Error", mock.Anything).Return()
+			l := NewMockLogger(t)
+			l.On("RequestLogger", mock.Anything).Return(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				h.update(w, r)
+			}))
 
-			h := NewHandler(s, l)
+			if test.want.code != http.StatusOK {
+				l.On("Error", mock.Anything).Return()
+			}
 
-			l.h = h.update
+			h = NewHandler(s, l)
 
 			r := chi.NewRouter()
 			r.Mount("/update", h.Route())
@@ -164,17 +137,21 @@ func TestUpdateHandler(t *testing.T) {
 				assert.Equal(t, test.want.response, string(resp.Body()))
 			}
 
+			if test.want.code != http.StatusOK {
+				l.AssertNumberOfCalls(t, "Error", 1)
+			}
+
 			l.AssertNumberOfCalls(t, "RequestLogger", 2)
 
 			if test.checkServiceCall {
 				switch test.metricType {
 				case "gauge":
 					value, _ := strconv.ParseFloat(test.metricValue, 64)
-					s.AssertCalled(t, "UpdateGauge", test.metricName, value)
+					s.AssertCalled(t, "UpdateGauge", mock.Anything, test.metricName, value)
 					s.AssertNumberOfCalls(t, "UpdateGauge", 1)
 				case "counter":
 					value, _ := strconv.ParseInt(test.metricValue, 10, 64)
-					s.AssertCalled(t, "UpdateCounter", test.metricName, value)
+					s.AssertCalled(t, "UpdateCounter", mock.Anything, test.metricName, value)
 					s.AssertNumberOfCalls(t, "UpdateCounter", 1)
 				}
 			}
@@ -260,21 +237,28 @@ func TestJSONUpdateHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			s := &fakeUpdateService{}
-			s.On("UpdateGauge", mock.Anything, mock.Anything).Return(nil)
-			s.On("UpdateCounter", mock.Anything, mock.Anything).Return(nil)
-			s.On("Gauge", mock.Anything, mock.Anything).Return(test.value, nil)
-			s.On("Counter", mock.Anything, mock.Anything).Return(test.delta+test.startDelta, nil)
+			s := updating.NewMockService(t)
+			switch test.metricType {
+			case "gauge":
+				s.On("UpdateGauge", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				s.On("Gauge", mock.Anything, mock.Anything, mock.Anything).Return(test.value, nil)
+			case "counter":
+				s.On("UpdateCounter", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				s.On("Counter", mock.Anything, mock.Anything, mock.Anything).Return(test.delta+test.startDelta, nil)
+			}
 
-			l := &fakeLogger{}
-			l.On("RequestLogger", mock.Anything).Return(func(w http.ResponseWriter, r *http.Request) {
-				l.h.ServeHTTP(w, r)
-			})
-			l.On("Error", mock.Anything).Return()
+			var h *Handler
 
-			h := NewHandler(s, l)
+			l := NewMockLogger(t)
+			l.On("RequestLogger", mock.Anything).Return(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				h.updateJSON(w, r)
+			}))
 
-			l.h = h.updateJSON
+			if test.want.code != http.StatusOK {
+				l.On("Error", mock.Anything).Return()
+			}
+
+			h = NewHandler(s, l)
 
 			r := chi.NewRouter()
 			r.Mount("/update", h.Route())
@@ -296,6 +280,10 @@ func TestJSONUpdateHandler(t *testing.T) {
 			assert.NoError(t, err, "error making HTTP request")
 			assert.Equal(t, test.want.code, resp.StatusCode())
 
+			if test.want.code != http.StatusOK {
+				l.AssertNumberOfCalls(t, "Error", 1)
+			}
+
 			if test.want.response != "" {
 				if test.checkServiceCall {
 					assert.JSONEq(t, test.want.response, string(resp.Body()))
@@ -309,14 +297,14 @@ func TestJSONUpdateHandler(t *testing.T) {
 			if test.checkServiceCall {
 				switch test.metricType {
 				case "gauge":
-					s.AssertCalled(t, "UpdateGauge", test.metricName, test.value)
+					s.AssertCalled(t, "UpdateGauge", mock.Anything, test.metricName, test.value)
 					s.AssertNumberOfCalls(t, "UpdateGauge", 1)
-					s.AssertCalled(t, "Gauge", test.metricName)
+					s.AssertCalled(t, "Gauge", mock.Anything, test.metricName)
 					s.AssertNumberOfCalls(t, "Gauge", 1)
 				case "counter":
-					s.AssertCalled(t, "UpdateCounter", test.metricName, test.delta)
+					s.AssertCalled(t, "UpdateCounter", mock.Anything, test.metricName, test.delta)
 					s.AssertNumberOfCalls(t, "UpdateCounter", 1)
-					s.AssertCalled(t, "Counter", test.metricName)
+					s.AssertCalled(t, "Counter", mock.Anything, test.metricName)
 					s.AssertNumberOfCalls(t, "Counter", 1)
 				}
 			}
@@ -328,19 +316,18 @@ func TestUpdateGzip(t *testing.T) {
 	t.Run("send gzip metric", func(t *testing.T) {
 		response := `{"id": "test", "type": "gauge", "value": 45.2}`
 
-		s := &fakeUpdateService{}
-		s.On("UpdateGauge", mock.Anything, mock.Anything).Return(nil)
-		s.On("Gauge", mock.Anything, mock.Anything).Return(45.2, nil)
+		s := updating.NewMockService(t)
+		s.On("UpdateGauge", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		s.On("Gauge", mock.Anything, mock.Anything, mock.Anything).Return(45.2, nil)
 
-		l := &fakeLogger{}
-		l.On("RequestLogger", mock.Anything).Return(func(w http.ResponseWriter, r *http.Request) {
-			l.h.ServeHTTP(w, r)
-		})
-		l.On("Error", mock.Anything).Return()
+		var h *Handler
 
-		h := NewHandler(s, l)
+		l := NewMockLogger(t)
+		l.On("RequestLogger", mock.Anything).Return(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gzip.Middleware(h.updateJSON)(w, r)
+		}))
 
-		l.h = gzip.Middleware(h.updateJSON)
+		h = NewHandler(s, l)
 
 		r := chi.NewRouter()
 		r.Mount("/update", h.Route())
@@ -377,28 +364,27 @@ func TestUpdateGzip(t *testing.T) {
 
 		l.AssertNumberOfCalls(t, "RequestLogger", 2)
 
-		s.AssertCalled(t, "UpdateGauge", "test", 45.2)
+		s.AssertCalled(t, "UpdateGauge", mock.Anything, "test", 45.2)
 		s.AssertNumberOfCalls(t, "UpdateGauge", 1)
-		s.AssertCalled(t, "Gauge", "test")
+		s.AssertCalled(t, "Gauge", mock.Anything, "test")
 		s.AssertNumberOfCalls(t, "Gauge", 1)
 	})
 
 	t.Run("accept gzip metric", func(t *testing.T) {
 		response := `{"id": "test", "type": "gauge", "value": 45.2}`
 
-		s := &fakeUpdateService{}
-		s.On("UpdateGauge", mock.Anything, mock.Anything).Return(nil)
-		s.On("Gauge", mock.Anything, mock.Anything).Return(45.2, nil)
+		s := updating.NewMockService(t)
+		s.On("UpdateGauge", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		s.On("Gauge", mock.Anything, mock.Anything, mock.Anything).Return(45.2, nil)
 
-		l := &fakeLogger{}
-		l.On("RequestLogger", mock.Anything).Return(func(w http.ResponseWriter, r *http.Request) {
-			l.h.ServeHTTP(w, r)
-		})
-		l.On("Error", mock.Anything).Return()
+		var h *Handler
 
-		h := NewHandler(s, l)
+		l := NewMockLogger(t)
+		l.On("RequestLogger", mock.Anything).Return(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gzip.Middleware(h.updateJSON)(w, r)
+		}))
 
-		l.h = gzip.Middleware(h.updateJSON)
+		h = NewHandler(s, l)
 
 		r := chi.NewRouter()
 		r.Mount("/update", h.Route())
@@ -434,9 +420,9 @@ func TestUpdateGzip(t *testing.T) {
 
 		l.AssertNumberOfCalls(t, "RequestLogger", 2)
 
-		s.AssertCalled(t, "UpdateGauge", "test", 45.2)
+		s.AssertCalled(t, "UpdateGauge", mock.Anything, "test", 45.2)
 		s.AssertNumberOfCalls(t, "UpdateGauge", 1)
-		s.AssertCalled(t, "Gauge", "test")
+		s.AssertCalled(t, "Gauge", mock.Anything, "test")
 		s.AssertNumberOfCalls(t, "Gauge", 1)
 	})
 }

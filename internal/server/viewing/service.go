@@ -1,21 +1,24 @@
 package viewing
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 type Service interface {
-	Gauge(name string) (float64, error)
-	Counter(name string) (int64, error)
-	Gauges() ([]Gauge, error)
-	Counters() ([]Counter, error)
+	Gauge(ctx context.Context, name string) (float64, error)
+	Counter(ctx context.Context, name string) (int64, error)
+	Gauges(ctx context.Context) ([]Gauge, error)
+	Counters(ctx context.Context) ([]Counter, error)
 }
 
 type Repository interface {
-	Gauge(name string) (float64, error)
-	Counter(name string) (int64, error)
-	ForEachGauge(fn func(key string, value float64))
-	ForEachCounter(fn func(key string, value int64))
-	TotalGauges() int
-	TotalCounters() int
+	Gauge(ctx context.Context, name string) (float64, error)
+	Counter(ctx context.Context, name string) (int64, error)
+	ForEachGauge(ctx context.Context, fn func(key string, value float64)) error
+	ForEachCounter(ctx context.Context, fn func(key string, value int64)) error
+	TotalGauges(ctx context.Context) (int, error)
+	TotalCounters(ctx context.Context) (int, error)
 }
 
 type service struct {
@@ -26,8 +29,8 @@ func NewService(r Repository) Service {
 	return &service{r}
 }
 
-func (s *service) Gauge(name string) (float64, error) {
-	value, err := s.r.Gauge(name)
+func (s *service) Gauge(ctx context.Context, name string) (float64, error) {
+	value, err := s.r.Gauge(ctx, name)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get %s gauge: %w", name, err)
 	}
@@ -35,8 +38,8 @@ func (s *service) Gauge(name string) (float64, error) {
 	return value, nil
 }
 
-func (s *service) Counter(name string) (int64, error) {
-	value, err := s.r.Counter(name)
+func (s *service) Counter(ctx context.Context, name string) (int64, error) {
+	value, err := s.r.Counter(ctx, name)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get %s counter: %w", name, err)
 	}
@@ -44,28 +47,46 @@ func (s *service) Counter(name string) (int64, error) {
 	return value, nil
 }
 
-func (s *service) Gauges() ([]Gauge, error) {
-	gauges := make([]Gauge, 0, s.r.TotalGauges())
+func (s *service) Gauges(ctx context.Context) ([]Gauge, error) {
+	total, err := s.r.TotalGauges(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total gauges: %w", err)
+	}
 
-	s.r.ForEachGauge(func(key string, value float64) {
+	gauges := make([]Gauge, 0, total)
+
+	err = s.r.ForEachGauge(ctx, func(key string, value float64) {
 		gauges = append(gauges, Gauge{
 			Name:  key,
 			Value: value,
 		})
 	})
 
+	if err != nil {
+		return nil, fmt.Errorf("failed to get gauges: %w", err)
+	}
+
 	return gauges, nil
 }
 
-func (s *service) Counters() ([]Counter, error) {
-	counters := make([]Counter, 0, s.r.TotalCounters())
+func (s *service) Counters(ctx context.Context) ([]Counter, error) {
+	total, err := s.r.TotalCounters(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total counters: %w", err)
+	}
 
-	s.r.ForEachCounter(func(key string, value int64) {
+	counters := make([]Counter, 0, total)
+
+	err = s.r.ForEachCounter(ctx, func(key string, value int64) {
 		counters = append(counters, Counter{
 			Name:  key,
 			Value: value,
 		})
 	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get counters: %w", err)
+	}
 
 	return counters, nil
 }

@@ -1,9 +1,11 @@
 package memory
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/kaa-it/go-devops/internal/api"
 	"os"
 	"sync"
 	"time"
@@ -93,7 +95,7 @@ func (s *Storage) Wait() {
 	s.wg.Wait()
 }
 
-func (s *Storage) UpdateGauge(name string, value float64) error {
+func (s *Storage) UpdateGauge(ctx context.Context, name string, value float64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -108,7 +110,7 @@ func (s *Storage) UpdateGauge(name string, value float64) error {
 	return nil
 }
 
-func (s *Storage) UpdateCounter(name string, value int64) error {
+func (s *Storage) UpdateCounter(ctx context.Context, name string, value int64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -124,25 +126,29 @@ func (s *Storage) UpdateCounter(name string, value int64) error {
 
 }
 
-func (s *Storage) ForEachGauge(fn func(key string, value float64)) {
+func (s *Storage) ForEachGauge(ctx context.Context, fn func(key string, value float64)) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	for key, value := range s.gauges {
 		fn(key, value)
 	}
+
+	return nil
 }
 
-func (s *Storage) ForEachCounter(fn func(key string, value int64)) {
+func (s *Storage) ForEachCounter(ctx context.Context, fn func(key string, value int64)) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	for key, value := range s.counters {
 		fn(key, value)
 	}
+
+	return nil
 }
 
-func (s *Storage) Gauge(name string) (float64, error) {
+func (s *Storage) Gauge(ctx context.Context, name string) (float64, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -154,7 +160,7 @@ func (s *Storage) Gauge(name string) (float64, error) {
 	return value, nil
 }
 
-func (s *Storage) Counter(name string) (int64, error) {
+func (s *Storage) Counter(ctx context.Context, name string) (int64, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -166,18 +172,18 @@ func (s *Storage) Counter(name string) (int64, error) {
 	return value, nil
 }
 
-func (s *Storage) TotalGauges() int {
+func (s *Storage) TotalGauges(ctx context.Context) (int, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return len(s.gauges)
+	return len(s.gauges), nil
 }
 
-func (s *Storage) TotalCounters() int {
+func (s *Storage) TotalCounters(ctx context.Context) (int, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return len(s.counters)
+	return len(s.counters), nil
 }
 
 func (s *Storage) Save() error {
@@ -185,6 +191,27 @@ func (s *Storage) Save() error {
 	defer s.mu.RUnlock()
 
 	return s.save()
+}
+
+func (s *Storage) Updates(ctx context.Context, metrics []api.Metrics) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, m := range metrics {
+		if m.MType == api.CounterType {
+			s.counters[m.ID] += *m.Delta
+		} else {
+			s.gauges[m.ID] = *m.Value
+		}
+	}
+
+	if s.config.StoreInterval == 0 {
+		if err := s.save(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (s *Storage) save() error {
@@ -237,6 +264,3 @@ func load(storeFilePath string) (*fileStorage, error) {
 
 	return &data, nil
 }
-
-// TODO: Запускаем горутину для сохраниения, читаем при старте; останов горутины; запись при завершении приложения;
-// TODO: корректное сохранение горутины; запись всего синхронная, если период 0

@@ -3,12 +3,13 @@ package updating
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/kaa-it/go-devops/internal/api"
 	"github.com/kaa-it/go-devops/internal/gzip"
 	"github.com/kaa-it/go-devops/internal/server/updating"
-	"net/http"
-	"strconv"
 )
 
 type Logger interface {
@@ -34,6 +35,11 @@ func (h *Handler) Route() *chi.Mux {
 	return mux
 }
 
+func (h *Handler) Updates() http.HandlerFunc {
+
+	return h.l.RequestLogger(gzip.Middleware(h.updates))
+}
+
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	category := chi.URLParam(r, "category")
 
@@ -47,6 +53,8 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 
 	valueStr := chi.URLParam(r, "value")
 
+	ctx := r.Context()
+
 	switch category {
 	case "gauge":
 		value, err := strconv.ParseFloat(valueStr, 64)
@@ -56,7 +64,7 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := h.a.UpdateGauge(name, value); err != nil {
+		if err := h.a.UpdateGauge(ctx, name, value); err != nil {
 			h.l.Error(err.Error())
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -64,11 +72,12 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	case "counter":
 		value, err := strconv.ParseInt(valueStr, 10, 64)
 		if err != nil {
+			h.l.Error("Invalid metric value")
 			http.Error(w, "Invalid metric value", http.StatusBadRequest)
 			return
 		}
 
-		if err := h.a.UpdateCounter(name, value); err != nil {
+		if err := h.a.UpdateCounter(ctx, name, value); err != nil {
 			h.l.Error(err.Error())
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -94,6 +103,8 @@ func (h *Handler) updateJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ctx := r.Context()
+
 	switch req.MType {
 	case api.GaugeType:
 		if req.Value == nil {
@@ -102,13 +113,13 @@ func (h *Handler) updateJSON(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := h.a.UpdateGauge(req.ID, *req.Value); err != nil {
+		if err := h.a.UpdateGauge(ctx, req.ID, *req.Value); err != nil {
 			h.l.Error(err.Error())
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		val, err := h.a.Gauge(req.ID)
+		val, err := h.a.Gauge(ctx, req.ID)
 		if err != nil {
 			h.l.Error(fmt.Sprintf("failed to get %s metric: %v", req.ID, err))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -124,13 +135,13 @@ func (h *Handler) updateJSON(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := h.a.UpdateCounter(req.ID, *req.Delta); err != nil {
+		if err := h.a.UpdateCounter(ctx, req.ID, *req.Delta); err != nil {
 			h.l.Error(err.Error())
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		val, err := h.a.Counter(req.ID)
+		val, err := h.a.Counter(ctx, req.ID)
 		if err != nil {
 			h.l.Error(fmt.Sprintf("failed to get %s metric: %v", req.ID, err))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -152,4 +163,37 @@ func (h *Handler) updateJSON(w http.ResponseWriter, r *http.Request) {
 		h.l.Error(fmt.Sprintf("failed encoding body for update: %v", err))
 		return
 	}
+}
+
+func (h *Handler) updates(w http.ResponseWriter, r *http.Request) {
+	var req []api.Metrics
+
+	dec := json.NewDecoder(r.Body)
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			h.l.Error(fmt.Sprintf("failed to close body: %v", err))
+		}
+	}()
+
+	if err := dec.Decode(&req); err != nil {
+		h.l.Error(fmt.Sprintf("failed decoding body for updates: %v", err))
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if len(req) == 0 {
+		h.l.Error("metric batch is empty")
+		http.Error(w, "Metric batch is empty", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+
+	if err := h.a.Updates(ctx, req); err != nil {
+		h.l.Error(fmt.Sprintf("batch update failed: %v", err.Error()))
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

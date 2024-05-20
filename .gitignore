@@ -26,3 +26,5 @@ vendor/
 
 /server
 /agent
+
+mock_*

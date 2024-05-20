@@ -37,6 +37,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: install mockery
+        run: go install github.com/vektra/mockery/v2@v2.43.0  
+
+      - name: start mockery
+        run: mockery  
+
       - name: Download autotests binaries
         uses: robinraju/release-downloader@v1.8
         with:
