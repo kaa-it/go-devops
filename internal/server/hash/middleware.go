@@ -19,8 +19,6 @@ func Middleware(key string, h http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		// TODO: Handle calculate hash at write
-
 		body, err := io.ReadAll(r.Body)
 
 		if err != nil {
