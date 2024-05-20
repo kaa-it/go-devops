@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -182,6 +185,10 @@ func (a *Agent) sendMetrics(metrics []api.Metrics) error {
 
 	req.SetBody(buf)
 
+	if len(a.config.Agent.Key) > 0 {
+		req.Header.Set("Hash", a.calculateHash(buf.Bytes()))
+	}
+
 	resp, err := req.Send()
 	if err != nil {
 		return fmt.Errorf("failed to send request for %s: %w", url, err)
@@ -192,6 +199,13 @@ func (a *Agent) sendMetrics(metrics []api.Metrics) error {
 	}
 
 	return nil
+}
+
+func (a *Agent) calculateHash(msg []byte) string {
+	h := hmac.New(sha256.New, []byte(a.config.Agent.Key))
+	h.Write(msg)
+
+	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }
 
 func (a *Agent) applyGauge(name string, value float64, metrics []api.Metrics) []api.Metrics {

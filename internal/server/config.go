@@ -21,6 +21,7 @@ const (
 type SelfConfig struct {
 	Address  string
 	LogLevel string
+	Key      string
 }
 
 type Config struct {
@@ -66,6 +67,12 @@ func NewConfig() *Config {
 		"database DSN",
 	)
 
+	key := flag.String(
+		"k",
+		"",
+		"hash key",
+	)
+
 	flag.Parse()
 
 	storeDuration := time.Duration(getEnvInt("STORE_INTERVAL", *storeInterval)) * time.Second
@@ -74,6 +81,7 @@ func NewConfig() *Config {
 		Server: SelfConfig{
 			Address:  getEnv("ADDRESS", *address),
 			LogLevel: getEnv("LOG_LEVEL", *logLevel),
+			Key:      getEnv("KEY", *key),
 		},
 		Storage: memory.StorageConfig{
 			StoreInterval: storeDuration,

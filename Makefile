@@ -3,13 +3,13 @@ build:
 	go build -o server ./cmd/server ;
 
 pg:
-	docker compose up -d
+	docker-compose up -d ;
 
 run_server:
-	./server -d "postgres://ak:postgres@localhost:5432/devops" -a ":8089"
+	./server -d "postgres://ak:postgres@localhost:5432/devops" -a ":8089" -k "xxx"
 
 run_agent:
-	./agent -a "localhost:8089"
+	./agent -a "localhost:8089" -k "xxx"
 
 test:
 	go vet --vettool=$(which statictest) ./... ;
