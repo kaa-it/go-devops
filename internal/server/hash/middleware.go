@@ -7,13 +7,14 @@ import (
 	"encoding/base64"
 	"io"
 	"net/http"
+	"strings"
 )
 
 func Middleware(key string, h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		hash := r.Header.Get("Hash")
 
-		if key == "" || hash == "" {
+		if key == "" || hash == "" || strings.ToLower(hash) == "none" {
 			h.ServeHTTP(w, r)
 			return
 		}
