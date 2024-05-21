@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/kaa-it/go-devops/internal/api"
 	"github.com/kaa-it/go-devops/internal/gzip"
+	"github.com/kaa-it/go-devops/internal/server/hash"
 	"github.com/kaa-it/go-devops/internal/server/updating"
 )
 
@@ -26,18 +27,18 @@ func NewHandler(a updating.Service, l Logger) *Handler {
 	return &Handler{a, l}
 }
 
-func (h *Handler) Route() *chi.Mux {
+func (h *Handler) Route(key string) *chi.Mux {
 	mux := chi.NewRouter()
 
-	mux.Post("/", h.l.RequestLogger(gzip.Middleware(h.updateJSON)))
-	mux.Post("/{category}/{name}/{value}", h.l.RequestLogger(h.update))
+	mux.Post("/", h.l.RequestLogger(hash.Middleware(key, gzip.Middleware(h.updateJSON))))
+	mux.Post("/{category}/{name}/{value}", h.l.RequestLogger(hash.Middleware(key, h.update)))
 
 	return mux
 }
 
-func (h *Handler) Updates() http.HandlerFunc {
+func (h *Handler) Updates(key string) http.HandlerFunc {
 
-	return h.l.RequestLogger(gzip.Middleware(h.updates))
+	return h.l.RequestLogger(hash.Middleware(key, gzip.Middleware(h.updates)))
 }
 
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
