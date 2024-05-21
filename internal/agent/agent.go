@@ -22,6 +22,9 @@ import (
 	"github.com/kaa-it/go-devops/internal/api"
 
 	"github.com/go-resty/resty/v2"
+
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 )
 
 const (
@@ -53,9 +56,10 @@ func (a *Agent) Run() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	wg := new(sync.WaitGroup)
-	wg.Add(2)
+	wg.Add(3)
 
 	go a.runPoller(ctx, wg)
+	go a.runAdditionalPoller(ctx, wg)
 	go a.runReporter(ctx, wg)
 
 	<-c
@@ -79,6 +83,22 @@ func (a *Agent) runPoller(ctx context.Context, wg *sync.WaitGroup) {
 			return
 		case <-pollTicker.C:
 			a.poll()
+		}
+	}
+}
+
+func (a *Agent) runAdditionalPoller(ctx context.Context, wg *sync.WaitGroup) {
+	pollTicker := time.NewTicker(a.config.Agent.PollInterval)
+	defer pollTicker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("Additional poller terminated")
+			wg.Done()
+			return
+		case <-pollTicker.C:
+			a.additionalPoll()
 		}
 	}
 }
@@ -136,6 +156,17 @@ func (a *Agent) poll() {
 	a.storage.UpdateGauge("RandomValue", rand.Float64())
 
 	log.Println("Poll done")
+}
+
+func (a *Agent) additionalPoll() {
+	v, _ := mem.VirtualMemory()
+	cpu, _ := cpu.Percent(0, false)
+
+	a.storage.UpdateGauge("TotalMemory", float64(v.Total))
+	a.storage.UpdateGauge("FreeMemory", float64(v.Free))
+	a.storage.UpdateGauge("CPUutilization1", cpu[0])
+
+	log.Println("Additional poll done")
 }
 
 func (a *Agent) report() {
