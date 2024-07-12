@@ -20,6 +20,7 @@ func Middleware(key string, h http.HandlerFunc) http.HandlerFunc {
 		}
 
 		body, err := io.ReadAll(r.Body)
+		defer r.Body.Close()
 
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
