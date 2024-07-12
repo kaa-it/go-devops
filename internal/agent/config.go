@@ -20,6 +20,7 @@ type ServerConfig struct {
 type SelfConfig struct {
 	PollInterval   time.Duration
 	ReportInterval time.Duration
+	Key            string
 }
 
 type Config struct {
@@ -43,6 +44,11 @@ func NewConfig() *Config {
 		_pollIntervalInSecs,
 		"poll interval (seconds)",
 	)
+	key := flag.String(
+		"k",
+		"",
+		"hash key",
+	)
 
 	flag.Parse()
 
@@ -56,6 +62,7 @@ func NewConfig() *Config {
 		Agent: SelfConfig{
 			PollInterval:   pollDuration,
 			ReportInterval: reportDuration,
+			Key:            getEnv("KEY", *key),
 		},
 	}
 }

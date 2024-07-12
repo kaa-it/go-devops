@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -19,6 +22,9 @@ import (
 	"github.com/kaa-it/go-devops/internal/api"
 
 	"github.com/go-resty/resty/v2"
+
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 )
 
 const (
@@ -50,9 +56,10 @@ func (a *Agent) Run() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	wg := new(sync.WaitGroup)
-	wg.Add(2)
+	wg.Add(3)
 
 	go a.runPoller(ctx, wg)
+	go a.runAdditionalPoller(ctx, wg)
 	go a.runReporter(ctx, wg)
 
 	<-c
@@ -76,6 +83,22 @@ func (a *Agent) runPoller(ctx context.Context, wg *sync.WaitGroup) {
 			return
 		case <-pollTicker.C:
 			a.poll()
+		}
+	}
+}
+
+func (a *Agent) runAdditionalPoller(ctx context.Context, wg *sync.WaitGroup) {
+	pollTicker := time.NewTicker(a.config.Agent.PollInterval)
+	defer pollTicker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("Additional poller terminated")
+			wg.Done()
+			return
+		case <-pollTicker.C:
+			a.additionalPoll()
 		}
 	}
 }
@@ -135,6 +158,17 @@ func (a *Agent) poll() {
 	log.Println("Poll done")
 }
 
+func (a *Agent) additionalPoll() {
+	v, _ := mem.VirtualMemory()
+	cpu, _ := cpu.Percent(0, false)
+
+	a.storage.UpdateGauge("TotalMemory", float64(v.Total))
+	a.storage.UpdateGauge("FreeMemory", float64(v.Free))
+	a.storage.UpdateGauge("CPUutilization1", cpu[0])
+
+	log.Println("Additional poll done")
+}
+
 func (a *Agent) report() {
 	var metrics []api.Metrics
 	a.storage.ForEachGauge(func(key string, value float64) {
@@ -182,6 +216,10 @@ func (a *Agent) sendMetrics(metrics []api.Metrics) error {
 
 	req.SetBody(buf)
 
+	if len(a.config.Agent.Key) > 0 {
+		req.Header.Set("Hash", a.calculateHash(buf.Bytes()))
+	}
+
 	resp, err := req.Send()
 	if err != nil {
 		return fmt.Errorf("failed to send request for %s: %w", url, err)
@@ -192,6 +230,13 @@ func (a *Agent) sendMetrics(metrics []api.Metrics) error {
 	}
 
 	return nil
+}
+
+func (a *Agent) calculateHash(msg []byte) string {
+	h := hmac.New(sha256.New, []byte(a.config.Agent.Key))
+	h.Write(msg)
+
+	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }
 
 func (a *Agent) applyGauge(name string, value float64, metrics []api.Metrics) []api.Metrics {

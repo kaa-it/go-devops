@@ -4,12 +4,13 @@ import (
 	"bytes"
 	gzipLib "compress/gzip"
 	"fmt"
-	"github.com/kaa-it/go-devops/internal/server/updating"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
+
+	"github.com/kaa-it/go-devops/internal/server/updating"
 
 	"github.com/kaa-it/go-devops/internal/gzip"
 	"github.com/stretchr/testify/require"
@@ -116,7 +117,7 @@ func TestUpdateHandler(t *testing.T) {
 			h = NewHandler(s, l)
 
 			r := chi.NewRouter()
-			r.Mount("/update", h.Route())
+			r.Mount("/update", h.Route(""))
 
 			srv := httptest.NewServer(r)
 
@@ -261,7 +262,7 @@ func TestJSONUpdateHandler(t *testing.T) {
 			h = NewHandler(s, l)
 
 			r := chi.NewRouter()
-			r.Mount("/update", h.Route())
+			r.Mount("/update", h.Route(""))
 
 			srv := httptest.NewServer(r)
 
@@ -330,7 +331,7 @@ func TestUpdateGzip(t *testing.T) {
 		h = NewHandler(s, l)
 
 		r := chi.NewRouter()
-		r.Mount("/update", h.Route())
+		r.Mount("/update", h.Route(""))
 
 		srv := httptest.NewServer(r)
 
@@ -387,7 +388,7 @@ func TestUpdateGzip(t *testing.T) {
 		h = NewHandler(s, l)
 
 		r := chi.NewRouter()
-		r.Mount("/update", h.Route())
+		r.Mount("/update", h.Route(""))
 
 		srv := httptest.NewServer(r)
 
