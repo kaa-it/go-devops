@@ -11,6 +11,9 @@ run_server:
 run_agent:
 	./agent -a "localhost:8089" -k "xxx"
 
+cover:
+	go test -v -coverprofile cover.out	./...
+
 test:
 	go vet --vettool=$(which statictest) ./... ;
 	metricstest -test.v -test.run=^TestIteration1$$ \
