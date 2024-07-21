@@ -1,10 +1,12 @@
 package main
 
 import (
+	"time"
+
 	"github.com/go-resty/resty/v2"
 	"github.com/joho/godotenv"
+
 	"github.com/kaa-it/go-devops/internal/agent"
-	"time"
 )
 
 const (

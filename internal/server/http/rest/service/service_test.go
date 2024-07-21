@@ -3,14 +3,16 @@ package service
 import (
 	"errors"
 	"fmt"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-resty/resty/v2"
-	"github.com/kaa-it/go-devops/internal/server/service"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-resty/resty/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+
+	"github.com/kaa-it/go-devops/internal/server/service"
 )
 
 func TestPing(t *testing.T) {

@@ -10,16 +10,14 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/kaa-it/go-devops/internal/server/updating"
-
-	"github.com/kaa-it/go-devops/internal/gzip"
-	"github.com/stretchr/testify/require"
-
 	"github.com/go-chi/chi/v5"
-
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
+	"github.com/kaa-it/go-devops/internal/gzip"
+	"github.com/kaa-it/go-devops/internal/server/updating"
 )
 
 func TestUpdateHandler(t *testing.T) {

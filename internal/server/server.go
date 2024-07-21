@@ -11,19 +11,17 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/go-chi/chi/v5"
+
 	serviceRest "github.com/kaa-it/go-devops/internal/server/http/rest/service"
 	updatingRest "github.com/kaa-it/go-devops/internal/server/http/rest/updating"
 	viewingRest "github.com/kaa-it/go-devops/internal/server/http/rest/viewing"
 	"github.com/kaa-it/go-devops/internal/server/logger"
-
 	"github.com/kaa-it/go-devops/internal/server/service"
-	"github.com/kaa-it/go-devops/internal/server/viewing"
-
-	"github.com/go-chi/chi/v5"
-
 	"github.com/kaa-it/go-devops/internal/server/storage/db"
 	"github.com/kaa-it/go-devops/internal/server/storage/memory"
 	"github.com/kaa-it/go-devops/internal/server/updating"
+	"github.com/kaa-it/go-devops/internal/server/viewing"
 )
 
 type Server struct {

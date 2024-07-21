@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/kaa-it/go-devops/internal/api"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/kaa-it/go-devops/internal/api"
 )
 
 type gauges = map[string]float64

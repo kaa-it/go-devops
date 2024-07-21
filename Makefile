@@ -11,6 +11,9 @@ run_server:
 run_agent:
 	./agent -a "localhost:8089" -k "xxx"
 
+format:
+	goimports -w -local github.com/kaa-it/go-devops .
+
 cover:
 	go test -v -coverprofile cover.out	./...
 

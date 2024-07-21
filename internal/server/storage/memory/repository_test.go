@@ -2,10 +2,11 @@ package memory
 
 import (
 	"context"
-	"github.com/kaa-it/go-devops/internal/api"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/kaa-it/go-devops/internal/api"
 )
 
 func TestRepository_Updates(t *testing.T) {

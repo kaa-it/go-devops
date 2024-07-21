@@ -19,12 +19,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/kaa-it/go-devops/internal/api"
-
 	"github.com/go-resty/resty/v2"
-
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
+
+	"github.com/kaa-it/go-devops/internal/api"
 )
 
 const (

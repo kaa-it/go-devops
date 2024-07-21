@@ -2,6 +2,7 @@ package updating
 
 import (
 	"context"
+
 	"github.com/kaa-it/go-devops/internal/api"
 )
 
