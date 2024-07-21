@@ -3,7 +3,9 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"sync"
@@ -70,13 +72,29 @@ func (s *Server) Run() {
 		Handler: r,
 	}
 
+	pprofServer := &http.Server{
+		Addr: ":7777",
+	}
+
 	var wg sync.WaitGroup
 
-	wg.Add(1)
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+
+		if err := pprofServer.ListenAndServe(); err != nil {
+			log.Error(fmt.Sprintf("pprof server failed: %s", err.Error()))
+		}
+	}()
 
 	go func() {
 		<-c
 		if err := server.Shutdown(context.Background()); err != nil {
+			log.Error(err.Error())
+		}
+
+		if err := pprofServer.Shutdown(context.Background()); err != nil {
 			log.Error(err.Error())
 		}
 
