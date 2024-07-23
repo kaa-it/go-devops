@@ -1,3 +1,4 @@
+// Package server contains implementation for metric server.
 package server
 
 import (
@@ -24,16 +25,21 @@ import (
 	"github.com/kaa-it/go-devops/internal/server/viewing"
 )
 
+// Server describes metric server.
 type Server struct {
 	config *Config
 }
 
+// New creates metric server instance.
 func New(config *Config) *Server {
 	return &Server{
 		config: config,
 	}
 }
 
+// Run runs server and controls its lifecycle.
+//
+// Except metric server runs pprof server on port 7777.
 func (s *Server) Run() {
 	log, err := logger.New(s.config.Server.LogLevel)
 	if err != nil {

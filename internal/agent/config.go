@@ -13,21 +13,31 @@ const (
 	_serverAddress        = "localhost:8080"
 )
 
+// ServerConfig contains configuration if metric server
 type ServerConfig struct {
+	// Address - address of metric server.
 	Address string
 }
 
+// SelfConfig contains configuration for metric client itself.
 type SelfConfig struct {
-	PollInterval   time.Duration
+	// PollInterval - interval for polling metrics
+	PollInterval time.Duration
+	// ReportInterval - interval for sending reports to server.
 	ReportInterval time.Duration
-	Key            string
+	// Key - cryptographic hash to encoding reports.
+	Key string
 }
 
+// Config describes total configuration for metric agent.
 type Config struct {
+	// Server - configuration for metric server.
 	Server ServerConfig
-	Agent  SelfConfig
+	// Agent - configuration for agent itself.
+	Agent SelfConfig
 }
 
+// NewConfig creates total configuration for metric agent.
 func NewConfig() *Config {
 	address := flag.String(
 		"a",

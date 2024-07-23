@@ -18,18 +18,27 @@ const (
 	_restore             = true
 )
 
+// SelfConfig contains configuration for the server itself.
 type SelfConfig struct {
-	Address  string
+	// Address - address to listen by server.
+	Address string
+	// LogLevel - minimal level for log of server.
 	LogLevel string
-	Key      string
+	// Key - cryptographic key for decoding update requests.
+	Key string
 }
 
+// Config contains total configuration for server.
 type Config struct {
-	Server    SelfConfig
-	Storage   memory.StorageConfig
+	// Server - configuration for server itself.
+	Server SelfConfig
+	// Storage - configuration for memory storage.
+	Storage memory.StorageConfig
+	// DBStorage - configuration for database storage.
 	DBStorage db.StorageConfig
 }
 
+// NewConfig creates total server configuration.
 func NewConfig() *Config {
 	address := flag.String(
 		"a",

@@ -1,3 +1,4 @@
+// Package gzip provides support for compressing agent reports and server responses in gzip format.
 package gzip
 
 import (
@@ -5,6 +6,10 @@ import (
 	"strings"
 )
 
+// Middleware wraps request handler to uncompress agent reports at server and compress server responses.
+//
+// Compresses server response if agent sends gzip in Accept-Encoding request header.
+// Uncompresses client report if agent request contains gzip in Content-Encoding request header.
 func Middleware(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ow := w

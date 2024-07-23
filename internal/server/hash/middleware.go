@@ -1,3 +1,4 @@
+// Package hash contains middleware for decoding requests with hash key.
 package hash
 
 import (
@@ -10,6 +11,7 @@ import (
 	"strings"
 )
 
+// Middleware wraps request handler to add decoding functionality with hash key.
 func Middleware(key string, h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		hash := r.Header.Get("Hash")

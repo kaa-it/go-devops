@@ -5,6 +5,9 @@ build:
 pg:
 	docker-compose up -d ;
 
+doc:
+	godoc -http=:9999
+
 run_server:
 	./server -d "postgres://ak:postgres@localhost:5433/devops" -a ":8089" -k "xxx"
 

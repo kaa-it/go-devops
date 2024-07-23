@@ -1,3 +1,4 @@
+// Package memory contains in-memory implementation of metric storage.
 package memory
 
 import (
@@ -15,6 +16,7 @@ import (
 type gauges = map[string]float64
 type counters = map[string]int64
 
+// Sentinel errors for in-memory storage.
 var (
 	ErrGaugeNotFound   = errors.New("gauge not found")
 	ErrCounterNotFound = errors.New("counter not found")
@@ -22,10 +24,14 @@ var (
 	ErrInvalidConfig   = errors.New("invalid configuration")
 )
 
+// StorageConfig describes configuration of in-memory storage.
 type StorageConfig struct {
+	// StoreInterval - interval for backup storage in file.
 	StoreInterval time.Duration
+	// StoreFilePath - path to file for storage backup.
 	StoreFilePath string
-	Restore       bool
+	// Restore - if true storage will be restored from backup at start of application.
+	Restore bool
 }
 
 type fileStorage struct {
@@ -33,6 +39,7 @@ type fileStorage struct {
 	Counters counters `json:"counters"`
 }
 
+// Storage describes in-memory storage.
 type Storage struct {
 	mu       sync.RWMutex
 	gauges   gauges
@@ -42,6 +49,10 @@ type Storage struct {
 	done     chan struct{}
 }
 
+// NewStorage creates new in-memory storage instance with given configuration.
+//
+// If config is nil returns ErrNoConfig.
+// If backup enabled but config.StoreFilePath is empty returns ErrInvalidConfig.
 func NewStorage(config *StorageConfig) (*Storage, error) {
 	if config == nil {
 		return nil, ErrNoConfig
@@ -90,13 +101,17 @@ func (s *Storage) saver() {
 	}
 }
 
+// Wait waits for completion of backup goroutine.
 func (s *Storage) Wait() {
 	close(s.done)
 
 	s.wg.Wait()
 }
 
-func (s *Storage) UpdateGauge(ctx context.Context, name string, value float64) error {
+// UpdateGauge updates gauge metric with given name in hashmap.
+//
+// May return output errors if backup enabled. Thread-safe.
+func (s *Storage) UpdateGauge(_ context.Context, name string, value float64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -111,7 +126,10 @@ func (s *Storage) UpdateGauge(ctx context.Context, name string, value float64) e
 	return nil
 }
 
-func (s *Storage) UpdateCounter(ctx context.Context, name string, value int64) error {
+// UpdateCounter updates counter metric with given name in hashmap.
+//
+// May return output errors if backup enabled. Thread-safe.
+func (s *Storage) UpdateCounter(_ context.Context, name string, value int64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -127,7 +145,8 @@ func (s *Storage) UpdateCounter(ctx context.Context, name string, value int64) e
 
 }
 
-func (s *Storage) ForEachGauge(ctx context.Context, fn func(key string, value float64)) error {
+// ForEachGauge applies given function to every gauge metric in storage. Thread-safe.
+func (s *Storage) ForEachGauge(_ context.Context, fn func(key string, value float64)) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -138,7 +157,8 @@ func (s *Storage) ForEachGauge(ctx context.Context, fn func(key string, value fl
 	return nil
 }
 
-func (s *Storage) ForEachCounter(ctx context.Context, fn func(key string, value int64)) error {
+// ForEachCounter applies given function to every counter metric in storage. Thread-safe.
+func (s *Storage) ForEachCounter(_ context.Context, fn func(key string, value int64)) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -149,7 +169,12 @@ func (s *Storage) ForEachCounter(ctx context.Context, fn func(key string, value 
 	return nil
 }
 
-func (s *Storage) Gauge(ctx context.Context, name string) (float64, error) {
+// Gauge returns value of gauge metric by its name.
+//
+// If metric with given name is not found returns ErrGaugeNotFound.
+//
+// Method is thread-safe.
+func (s *Storage) Gauge(_ context.Context, name string) (float64, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -161,7 +186,12 @@ func (s *Storage) Gauge(ctx context.Context, name string) (float64, error) {
 	return value, nil
 }
 
-func (s *Storage) Counter(ctx context.Context, name string) (int64, error) {
+// Counter returns value of counter metric by its name.
+//
+// If metric with given name is not found returns ErrCounterNotFound.
+//
+// Method is thread-safe.
+func (s *Storage) Counter(_ context.Context, name string) (int64, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -173,20 +203,23 @@ func (s *Storage) Counter(ctx context.Context, name string) (int64, error) {
 	return value, nil
 }
 
-func (s *Storage) TotalGauges(ctx context.Context) (int, error) {
+// TotalGauges returns total amount of gauge metric from storage. Thread-safe.
+func (s *Storage) TotalGauges(_ context.Context) (int, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	return len(s.gauges), nil
 }
 
-func (s *Storage) TotalCounters(ctx context.Context) (int, error) {
+// TotalCounters returns total amount of counter metric from storage. Thread-safe.
+func (s *Storage) TotalCounters(_ context.Context) (int, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	return len(s.counters), nil
 }
 
+// Save creates backup of storage.
 func (s *Storage) Save() error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -194,7 +227,8 @@ func (s *Storage) Save() error {
 	return s.save()
 }
 
-func (s *Storage) Updates(ctx context.Context, metrics []api.Metrics) error {
+// Updates updates some metrics simultaneously in storage. Thread-safe.
+func (s *Storage) Updates(_ context.Context, metrics []api.Metrics) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
