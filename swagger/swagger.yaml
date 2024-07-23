@@ -1,0 +1,243 @@
+basePath: /
+definitions:
+  api.Metrics:
+    properties:
+      delta:
+        description: Delta - increment value for counter metric, for gauge metric
+          is nil.
+        type: integer
+      id:
+        description: ID - unique metric name.
+        type: string
+      type:
+        allOf:
+        - $ref: '#/definitions/api.MetricsType'
+        description: MType - metric type.
+      value:
+        description: Value - new value for gauge metric, for counter metric is nil.
+        type: number
+    type: object
+  api.MetricsType:
+    enum:
+    - gauge
+    - counter
+    type: string
+    x-enum-comments:
+      CounterType: counter metric type
+      GaugeType: gauge metric type
+    x-enum-varnames:
+    - GaugeType
+    - CounterType
+  viewing.MetricRequest:
+    properties:
+      id:
+        description: ID - unique metric name.
+        type: string
+      type:
+        allOf:
+        - $ref: '#/definitions/api.MetricsType'
+        description: MType - metric type.
+    type: object
+host: localhost:8089
+info:
+  contact:
+    email: kaa-it@yandex.ru
+  description: Service for collect application metrics.
+  title: Metric Service API
+  version: "1.0"
+paths:
+  /:
+    get:
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: OK
+        "500":
+          description: Internal Server Error
+      summary: Request to get HTML page with all metrics
+      tags:
+      - View
+  /ping:
+    get:
+      responses:
+        "200":
+          description: OK
+        "500":
+          description: Internal Server Error
+      summary: Request for service health checking
+      tags:
+      - Info
+  /update/:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Metric update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.Metrics'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+        "501":
+          description: Metric type is not supported
+          schema:
+            type: string
+      summary: Request to update metric value in JSON format
+      tags:
+      - Update
+  /update/{category}/{name}/{value}:
+    post:
+      parameters:
+      - description: Metric type
+        in: path
+        name: category
+        required: true
+        type: string
+      - description: Metric name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: New metric value
+        in: path
+        name: value
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+        "501":
+          description: Metric type is not supported
+          schema:
+            type: string
+      summary: Request to update value of metric using URL params
+      tags:
+      - Update
+  /updates:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Batch metric update request
+        in: body
+        name: request
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/api.Metrics'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+      summary: Request to update some metric value simultaneously in JSON format
+      tags:
+      - Update
+  /value/:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Metric value request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/viewing.MetricRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+        "501":
+          description: Metric type is not supported
+          schema:
+            type: string
+      summary: Request to get metric value in JSON format
+      tags:
+      - View
+  /value/{category}/{name}:
+    get:
+      parameters:
+      - description: Metric type
+        enum:
+        - gauge
+        - counter
+        in: path
+        name: category
+        required: true
+        type: string
+      - description: Metric name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+        "501":
+          description: Metric type is not supported
+          schema:
+            type: string
+      summary: Request to get value of metric by its category and name
+      tags:
+      - View
+swagger: "2.0"
+tags:
+- description: '"Request group for service health checking"'
+  name: Info
+- description: '"Request group for viewing collected metrics"'
+  name: View
+- description: '"Request group for updating metrics'
+  name: Update

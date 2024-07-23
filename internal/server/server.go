@@ -13,6 +13,7 @@ import (
 	"syscall"
 
 	"github.com/go-chi/chi/v5"
+	httpSwagger "github.com/swaggo/http-swagger"
 
 	serviceRest "github.com/kaa-it/go-devops/internal/server/http/rest/service"
 	updatingRest "github.com/kaa-it/go-devops/internal/server/http/rest/updating"
@@ -23,6 +24,7 @@ import (
 	"github.com/kaa-it/go-devops/internal/server/storage/memory"
 	"github.com/kaa-it/go-devops/internal/server/updating"
 	"github.com/kaa-it/go-devops/internal/server/viewing"
+	_ "github.com/kaa-it/go-devops/swagger"
 )
 
 // Server describes metric server.
@@ -138,6 +140,7 @@ func (s *Server) initMemory(log *logger.Logger) (*chi.Mux, *memory.Storage, erro
 	r.Mount("/update", updatingHandler.Route(s.config.Server.Key))
 	r.Mount("/", viewingHandler.Route())
 	r.Mount("/updates", updatingHandler.Updates(s.config.Server.Key))
+	r.Mount("/swagger", httpSwagger.WrapHandler)
 
 	return r, storage, nil
 }
@@ -166,6 +169,7 @@ func (s *Server) initDB(log *logger.Logger) (*chi.Mux, *db.Storage, error) {
 	r.Mount("/", viewingHandler.Route())
 	r.Mount("/ping", serviceHandler.Route())
 	r.Mount("/updates", updatingHandler.Updates(s.config.Server.Key))
+	r.Mount("/swagger", httpSwagger.WrapHandler)
 
 	return r, storage, nil
 }

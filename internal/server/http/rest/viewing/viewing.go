@@ -20,15 +20,18 @@ type Logger interface {
 	Error(args ...interface{})
 }
 
+// Handler describes common state for all handlers in package
 type Handler struct {
 	a viewing.Service
 	l Logger
 }
 
+// NewHandler creates new instance of Handler
 func NewHandler(a viewing.Service, l Logger) *Handler {
 	return &Handler{a, l}
 }
 
+// Route creates router for all routes controlled by the package
 func (h *Handler) Route() *chi.Mux {
 	mux := chi.NewRouter()
 
@@ -39,6 +42,12 @@ func (h *Handler) Route() *chi.Mux {
 	return mux
 }
 
+//		    @Tags	View
+//			@Summary Request to get HTML page with all metrics
+//			@Produce    html
+//		    @Success	200
+//		    @Failure	500
+//	        @Router	    /	[get]
 func (h *Handler) home(w http.ResponseWriter, r *http.Request) {
 	const templ = `
 		<table style='
@@ -136,6 +145,16 @@ func (h *Handler) home(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//			    @Tags	View
+//				@Summary Request to get value of metric by its category and name
+//				@Produce    plain
+//		        @Param	    category   path       api.MetricsType  true "Metric type"
+//	            @Param      name       path       string  true "Metric name"
+//				@Success	200
+//				@Failure    404        {string}   string
+//				@Failure	501        {string}   string "Metric type is not supported"
+//			    @Failure    500
+//				@Router	    /value/{category}/{name}	[get]
 func (h *Handler) value(w http.ResponseWriter, r *http.Request) {
 	category := chi.URLParam(r, "category")
 
@@ -185,8 +204,27 @@ func (h *Handler) value(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// MetricRequest describes body format for request metric value.
+type MetricRequest struct {
+	// ID - unique metric name.
+	ID string `json:"id"`
+	// MType - metric type.
+	MType api.MetricsType `json:"type"`
+}
+
+//			@Tags	View
+//			@Summary Request to get metric value in JSON format
+//		    @Accept     json
+//			@Produce    json
+//			@Param	    request    body       MetricRequest  true "Metric value request"
+//			@Success	200
+//	        @Failure    400        {string}   string
+//			@Failure    404        {string}   string
+//			@Failure	501        {string}   string "Metric type is not supported"
+//			@Failure    500
+//			@Router	    /value/	[get]
 func (h *Handler) valueJSON(w http.ResponseWriter, r *http.Request) {
-	var req api.Metrics
+	var req MetricRequest
 
 	dec := json.NewDecoder(r.Body)
 	defer func() {
@@ -203,6 +241,11 @@ func (h *Handler) valueJSON(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
+	res := api.Metrics{
+		ID:    req.ID,
+		MType: req.MType,
+	}
+
 	switch req.MType {
 	case api.GaugeType:
 		value, err := h.a.Gauge(ctx, req.ID)
@@ -212,7 +255,7 @@ func (h *Handler) valueJSON(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		req.Value = &value
+		res.Value = &value
 
 	case api.CounterType:
 		value, err := h.a.Counter(ctx, req.ID)
@@ -222,7 +265,7 @@ func (h *Handler) valueJSON(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		req.Delta = &value
+		res.Delta = &value
 
 	default:
 		h.l.Error(fmt.Sprintf("metric type %s not supported", req.MType))
@@ -234,7 +277,7 @@ func (h *Handler) valueJSON(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	enc := json.NewEncoder(w)
-	if err := enc.Encode(req); err != nil {
+	if err := enc.Encode(res); err != nil {
 		h.l.Error(fmt.Sprintf("failed encoding body for update: %v", err))
 		return
 	}
