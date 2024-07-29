@@ -1,3 +1,4 @@
+// Package viewing provides service for viewing context boundary.
 package viewing
 
 import (
@@ -5,19 +6,32 @@ import (
 	"fmt"
 )
 
+// Service describes methods provided by the service.
 type Service interface {
+	// Gauge returns value for gauge metric with given name.
 	Gauge(ctx context.Context, name string) (float64, error)
+	// Counter returns value for counter metrics with given name.
 	Counter(ctx context.Context, name string) (int64, error)
+	// Gauges returns all gauge metrics.
 	Gauges(ctx context.Context) ([]Gauge, error)
+	// Counters returns all counter metrics.
 	Counters(ctx context.Context) ([]Counter, error)
 }
 
+// Repository describes methods for repository that must be provided to the service.
+// The service uses this repository to get metrics from storage.
 type Repository interface {
+	// Gauge returns gauge metric value with given name.
 	Gauge(ctx context.Context, name string) (float64, error)
+	// Counter returns counter metric value with given name.
 	Counter(ctx context.Context, name string) (int64, error)
+	// ForEachGauge applies given function to every gauge metric in storage.
 	ForEachGauge(ctx context.Context, fn func(key string, value float64)) error
+	// ForEachCounter applies given function to every counter metric in storage.
 	ForEachCounter(ctx context.Context, fn func(key string, value int64)) error
+	// TotalGauges returns total amount of gauge metrics in storage.
 	TotalGauges(ctx context.Context) (int, error)
+	// TotalCounters returns total amount of counter metrics in storage.
 	TotalCounters(ctx context.Context) (int, error)
 }
 
@@ -25,6 +39,7 @@ type service struct {
 	r Repository
 }
 
+// NewService creates new service instance.
 func NewService(r Repository) Service {
 	return &service{r}
 }

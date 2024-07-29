@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/go-resty/resty/v2"
-
 	"github.com/stretchr/testify/assert"
 )
 

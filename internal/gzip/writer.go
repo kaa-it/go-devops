@@ -10,20 +10,24 @@ var contentTypesForGzip = []string{
 	"application/json",
 }
 
+// Writer describes wrapper for standard ResponseWriter with gzip compress support.
 type Writer struct {
 	w        http.ResponseWriter
 	zw       *gzip.Writer
 	compress bool
 }
 
+// NewWriter creates new instance of wrapped writer.
 func NewWriter(w http.ResponseWriter) *Writer {
 	return &Writer{w: w, zw: gzip.NewWriter(w), compress: false}
 }
 
+// Header provides access to header of wrapped writer.
 func (gw *Writer) Header() http.Header {
 	return gw.w.Header()
 }
 
+// WriteHeader writes response header with given status code.
 func (gw *Writer) WriteHeader(statusCode int) {
 	contentType := gw.w.Header().Get("Content-Type")
 
@@ -35,6 +39,7 @@ func (gw *Writer) WriteHeader(statusCode int) {
 	gw.w.WriteHeader(statusCode)
 }
 
+// Write writes slice to connection.
 func (gw *Writer) Write(b []byte) (int, error) {
 	if gw.compress {
 		return gw.zw.Write(b)
@@ -43,6 +48,7 @@ func (gw *Writer) Write(b []byte) (int, error) {
 	return gw.w.Write(b)
 }
 
+// Close closes writer.
 func (gw *Writer) Close() error {
 	return gw.zw.Close()
 }

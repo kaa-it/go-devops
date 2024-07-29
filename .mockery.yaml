@@ -11,9 +11,15 @@ packages:
   github.com/kaa-it/go-devops/internal/server/updating:
     interfaces:
       Service:
+  github.com/kaa-it/go-devops/internal/server/service:
+    interfaces:
+      Service:
   github.com/kaa-it/go-devops/internal/server/http/rest/viewing:
     interfaces:
       Logger:
   github.com/kaa-it/go-devops/internal/server/http/rest/updating:
+    interfaces:
+      Logger:
+  github.com/kaa-it/go-devops/internal/server/http/rest/service:
     interfaces:
       Logger:

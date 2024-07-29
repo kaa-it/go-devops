@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+
 	"github.com/kaa-it/go-devops/internal/api"
 	"github.com/kaa-it/go-devops/internal/gzip"
 	"github.com/kaa-it/go-devops/internal/server/hash"
@@ -18,15 +19,18 @@ type Logger interface {
 	Error(args ...interface{})
 }
 
+// Handler describes common state for all handlers in package
 type Handler struct {
 	a updating.Service
 	l Logger
 }
 
+// NewHandler creates new instance of Handler
 func NewHandler(a updating.Service, l Logger) *Handler {
 	return &Handler{a, l}
 }
 
+// Route creates router for all routes controlled by the package
 func (h *Handler) Route(key string) *chi.Mux {
 	mux := chi.NewRouter()
 
@@ -36,11 +40,22 @@ func (h *Handler) Route(key string) *chi.Mux {
 	return mux
 }
 
+// Updates returns handler for /updates route.
 func (h *Handler) Updates(key string) http.HandlerFunc {
 
 	return h.l.RequestLogger(hash.Middleware(key, gzip.Middleware(h.updates)))
 }
 
+//			@Tags	Update
+//			@Summary Request to update value of metric using URL params
+//			@Param	    category   path       string  true "Metric type"
+//		    @Param      name       path       string  true "Metric name"
+//	        @Param      value      path       string  true "New metric value"
+//			@Success	200
+//			@Failure    404        {string}   string
+//			@Failure	501        {string}   string "Metric type is not supported"
+//			@Failure    500
+//			@Router	    /update/{category}/{name}/{value}	[post]
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	category := chi.URLParam(r, "category")
 
@@ -88,6 +103,17 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+//			@Tags	 Update
+//			@Summary Request to update metric value in JSON format
+//		    @Accept     json
+//			@Produce    json
+//			@Param	    request    body       api.Metrics  true "Metric update request"
+//			@Success	200
+//	        @Failure    400        {string}   string
+//			@Failure    404        {string}   string
+//			@Failure	501        {string}   string "Metric type is not supported"
+//			@Failure    500
+//			@Router	    /update/	[post]
 func (h *Handler) updateJSON(w http.ResponseWriter, r *http.Request) {
 	var req api.Metrics
 
@@ -166,6 +192,16 @@ func (h *Handler) updateJSON(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//			@Tags	 Update
+//			@Summary Request to update some metric value simultaneously in JSON format
+//		    @Accept     json
+//			@Produce    json
+//			@Param	    request    body       []api.Metrics  true "Batch metric update request"
+//			@Success	200
+//	        @Failure    400        {string}   string
+//			@Failure    404        {string}   string
+//			@Failure    500
+//			@Router	    /updates	[post]
 func (h *Handler) updates(w http.ResponseWriter, r *http.Request) {
 	var req []api.Metrics
 

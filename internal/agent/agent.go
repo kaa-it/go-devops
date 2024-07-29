@@ -1,3 +1,6 @@
+// Package agent contains implementation for metric agent.
+//
+// The agent collects counter and gauge metrics to storage and sends their to server with interval.
 package agent
 
 import (
@@ -19,24 +22,27 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/kaa-it/go-devops/internal/api"
-
 	"github.com/go-resty/resty/v2"
-
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
+
+	"github.com/kaa-it/go-devops/internal/api"
 )
 
 const (
 	_requestTimeout = 5 * time.Second
 )
 
+// Agent describes metric agent.
 type Agent struct {
 	storage *Storage
 	config  *Config
 	client  *resty.Client
 }
 
+// New creates new metric agent
+//
+// Takes client to connect to metric server and config with total configuration of agent.
 func New(client *resty.Client, config *Config) *Agent {
 	client.SetTimeout(_requestTimeout)
 
@@ -47,6 +53,7 @@ func New(client *resty.Client, config *Config) *Agent {
 	}
 }
 
+// Run runs metric agent and control its lifecycle.
 func (a *Agent) Run() {
 	log.Println("Agent started")
 

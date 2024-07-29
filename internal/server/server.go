@@ -1,39 +1,48 @@
+// Package server contains implementation for metric server.
 package server
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	httpSwagger "github.com/swaggo/http-swagger"
 
 	serviceRest "github.com/kaa-it/go-devops/internal/server/http/rest/service"
 	updatingRest "github.com/kaa-it/go-devops/internal/server/http/rest/updating"
 	viewingRest "github.com/kaa-it/go-devops/internal/server/http/rest/viewing"
 	"github.com/kaa-it/go-devops/internal/server/logger"
-
 	"github.com/kaa-it/go-devops/internal/server/service"
-	"github.com/kaa-it/go-devops/internal/server/viewing"
-
-	"github.com/go-chi/chi/v5"
-
 	"github.com/kaa-it/go-devops/internal/server/storage/db"
 	"github.com/kaa-it/go-devops/internal/server/storage/memory"
 	"github.com/kaa-it/go-devops/internal/server/updating"
+	"github.com/kaa-it/go-devops/internal/server/viewing"
+	_ "github.com/kaa-it/go-devops/swagger"
 )
 
+// Server describes metric server.
 type Server struct {
 	config *Config
 }
 
+// New creates metric server instance.
 func New(config *Config) *Server {
 	return &Server{
 		config: config,
 	}
 }
 
+// Run runs server and controls its lifecycle.
+//
+// Except metric server runs pprof server on port 7777.
 func (s *Server) Run() {
 	log, err := logger.New(s.config.Server.LogLevel)
 	if err != nil {
@@ -70,13 +79,36 @@ func (s *Server) Run() {
 		Handler: r,
 	}
 
+	pprofServer := &http.Server{
+		Addr: ":7777",
+	}
+
 	var wg sync.WaitGroup
 
-	wg.Add(1)
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+
+		if err := pprofServer.ListenAndServe(); err != nil {
+			log.Error(fmt.Sprintf("pprof server failed: %s", err.Error()))
+		}
+	}()
 
 	go func() {
 		<-c
-		if err := server.Shutdown(context.Background()); err != nil {
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := server.Shutdown(ctx); err != nil {
+			log.Error(err.Error())
+		}
+
+		ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := pprofServer.Shutdown(ctx); err != nil {
 			log.Error(err.Error())
 		}
 
@@ -116,6 +148,7 @@ func (s *Server) initMemory(log *logger.Logger) (*chi.Mux, *memory.Storage, erro
 	r.Mount("/update", updatingHandler.Route(s.config.Server.Key))
 	r.Mount("/", viewingHandler.Route())
 	r.Mount("/updates", updatingHandler.Updates(s.config.Server.Key))
+	r.Mount("/swagger", httpSwagger.WrapHandler)
 
 	return r, storage, nil
 }
@@ -144,6 +177,7 @@ func (s *Server) initDB(log *logger.Logger) (*chi.Mux, *db.Storage, error) {
 	r.Mount("/", viewingHandler.Route())
 	r.Mount("/ping", serviceHandler.Route())
 	r.Mount("/updates", updatingHandler.Updates(s.config.Server.Key))
+	r.Mount("/swagger", httpSwagger.WrapHandler)
 
 	return r, storage, nil
 }

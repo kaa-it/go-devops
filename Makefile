@@ -1,15 +1,36 @@
+.PHONY: build pg doc swagger
+
 build:
 	go build -o agent ./cmd/agent ;
 	go build -o server ./cmd/server ;
 
+install_tools:
+	go install -v golang.org/x/tools/cmd/godoc@latest
+	go install github.com/swaggo/swag/cmd/swag@latest
+
+swagger:
+	swag init --output ./swagger/ \
+    -d ./internal/server/http/rest,./internal/server/http/rest/service,./internal/server/http/rest/viewing,./internal/server/http/rest/updating,./internal/api \
+    -g doc.go
+
 pg:
-	docker-compose up -d ;
+	docker compose up -d ;
+
+doc:
+	godoc -http=:9999
 
 run_server:
-	./server -d "postgres://ak:postgres@localhost:5432/devops" -a ":8089" -k "xxx"
+	CompileDaemon -command='./server -d postgres://ak:postgres@localhost:5432/devops -a :8089 -k xxx' \
+	-build="go build -o server ./cmd/server"
 
 run_agent:
 	./agent -a "localhost:8089" -k "xxx"
+
+format:
+	goimports -w -local github.com/kaa-it/go-devops .
+
+cover:
+	go test -v -coverprofile cover.out	./...
 
 test:
 	go vet --vettool=$(which statictest) ./... ;
