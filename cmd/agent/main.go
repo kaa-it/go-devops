@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -16,7 +17,17 @@ const (
 	_retryDelay       = 2 * time.Second
 )
 
+var (
+	buildVersion string
+	buildDate    string
+	buildCommit  string
+)
+
 func main() {
+	fmt.Printf("Build version: %s\n", buildVersion)
+	fmt.Printf("Build data: %s\n", buildDate)
+	fmt.Printf("Build commit: %s\n", buildCommit)
+
 	_ = godotenv.Load()
 
 	config := agent.NewConfig()
