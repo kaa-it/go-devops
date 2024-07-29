@@ -1,5 +1,4 @@
 // Package db contains Postgresql database implementation of metric storage.
-
 package db
 
 import (

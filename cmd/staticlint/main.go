@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/kaa-it/go-devops/internal/staticlint"
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/multichecker"
 	"golang.org/x/tools/go/analysis/passes/appends"
 	"golang.org/x/tools/go/analysis/passes/asmdecl"
@@ -44,10 +46,38 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
 	"golang.org/x/tools/go/analysis/passes/unusedwrite"
+	"honnef.co/go/tools/quickfix"
+	"honnef.co/go/tools/simple"
+	"honnef.co/go/tools/staticcheck"
+	"honnef.co/go/tools/stylecheck"
 )
 
 func main() {
-	multichecker.Main(
+	total := 43 +
+		len(staticcheck.Analyzers) +
+		len(simple.Analyzers) +
+		len(stylecheck.Analyzers) +
+		len(quickfix.Analyzers)
+
+	myChecks := make([]*analysis.Analyzer, 0, total)
+
+	for _, v := range staticcheck.Analyzers {
+		myChecks = append(myChecks, v.Analyzer)
+	}
+
+	for _, v := range simple.Analyzers {
+		myChecks = append(myChecks, v.Analyzer)
+	}
+
+	for _, v := range stylecheck.Analyzers {
+		myChecks = append(myChecks, v.Analyzer)
+	}
+
+	for _, v := range quickfix.Analyzers {
+		myChecks = append(myChecks, v.Analyzer)
+	}
+
+	myChecks = append(myChecks,
 		appends.Analyzer,
 		asmdecl.Analyzer,
 		assign.Analyzer,
@@ -90,5 +120,10 @@ func main() {
 		unsafeptr.Analyzer,
 		unusedresult.Analyzer,
 		unusedwrite.Analyzer,
+		staticlint.ExitCheckAnalyzer,
+	)
+
+	multichecker.Main(
+		myChecks...,
 	)
 }

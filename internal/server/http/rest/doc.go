@@ -1,3 +1,4 @@
+// Package rest contains REST API implementation for server
 package rest
 
 // @Title Metric Service API

@@ -1,3 +1,4 @@
+// Package viewing describes handlers for getting metrics from server
 package viewing
 
 import (
