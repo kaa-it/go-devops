@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -96,11 +97,18 @@ func (s *Server) Run() {
 
 	go func() {
 		<-c
-		if err := server.Shutdown(context.Background()); err != nil {
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := server.Shutdown(ctx); err != nil {
 			log.Error(err.Error())
 		}
 
-		if err := pprofServer.Shutdown(context.Background()); err != nil {
+		ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := pprofServer.Shutdown(ctx); err != nil {
 			log.Error(err.Error())
 		}
 
