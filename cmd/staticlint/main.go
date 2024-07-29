@@ -5,7 +5,6 @@
 package main
 
 import (
-	"github.com/kaa-it/go-devops/internal/staticlint"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/multichecker"
 	"golang.org/x/tools/go/analysis/passes/appends"
@@ -54,6 +53,8 @@ import (
 	"honnef.co/go/tools/simple"
 	"honnef.co/go/tools/staticcheck"
 	"honnef.co/go/tools/stylecheck"
+
+	"github.com/kaa-it/go-devops/internal/staticlint"
 )
 
 func main() {
