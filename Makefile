@@ -3,6 +3,7 @@
 build:
 	go build -o agent ./cmd/agent ;
 	go build -o server ./cmd/server ;
+	go build -o multichecker ./cmd/multichecker/main.go
 
 install_tools:
 	go install -v golang.org/x/tools/cmd/godoc@latest

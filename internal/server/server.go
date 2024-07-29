@@ -58,7 +58,6 @@ func (s *Server) Run() {
 	var storage *memory.Storage
 
 	if s.config.DBStorage.DSN != "" {
-		var err error
 		var storage *db.Storage
 		r, storage, err = s.initDB(log)
 		if err != nil {
@@ -67,7 +66,6 @@ func (s *Server) Run() {
 
 		defer storage.Close()
 	} else {
-		var err error
 		r, storage, err = s.initMemory(log)
 		if err != nil {
 			log.Fatal(err.Error())
@@ -90,7 +88,7 @@ func (s *Server) Run() {
 	go func() {
 		defer wg.Done()
 
-		if err := pprofServer.ListenAndServe(); err != nil {
+		if err = pprofServer.ListenAndServe(); err != nil {
 			log.Error(fmt.Sprintf("pprof server failed: %s", err.Error()))
 		}
 	}()
@@ -101,14 +99,14 @@ func (s *Server) Run() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		if err := server.Shutdown(ctx); err != nil {
+		if err = server.Shutdown(ctx); err != nil {
 			log.Error(err.Error())
 		}
 
 		ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		if err := pprofServer.Shutdown(ctx); err != nil {
+		if err = pprofServer.Shutdown(ctx); err != nil {
 			log.Error(err.Error())
 		}
 
