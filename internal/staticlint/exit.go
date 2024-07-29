@@ -1,3 +1,5 @@
+// Package staticlint describes analyzer for checking existance os.Exit function direct call at
+// main function of main package.
 package staticlint
 
 import (

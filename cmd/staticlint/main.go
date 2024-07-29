@@ -1,3 +1,7 @@
+// Package main for static lint uses mutlichecker to enable all analyzers from
+// "golang.org/x/tools/go/analysis" library and all analyzer from all groups of
+// "honnef.co/go/tools/staticcheck" library.
+// Additionally, adds custom ExitCheckAnalyzer.
 package main
 
 import (
