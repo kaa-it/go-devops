@@ -24,7 +24,9 @@ func TestAgent(t *testing.T) {
 
 	defer server.Close()
 
-	config := NewConfig()
+	config, err := NewConfig()
+	require.NoError(t, err)
+
 	config.Server.Address = strings.Split(server.URL, "//")[1]
 
 	client := resty.NewWithClient(server.Client())

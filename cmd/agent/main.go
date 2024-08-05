@@ -23,7 +23,12 @@ func main() {
 
 	_ = godotenv.Load()
 
-	config := agent.NewConfig()
+	config, err := agent.NewConfig()
+	if err != nil {
+		log.Printf("failed to load config: %s", err)
+		return
+	}
+
 	client := resty.New()
 
 	client.SetRetryCount(_retryCount)

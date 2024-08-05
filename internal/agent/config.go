@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"flag"
 	"os"
 	"strconv"
@@ -16,31 +17,31 @@ const (
 // ServerConfig contains configuration if metric server
 type ServerConfig struct {
 	// Address - address of metric server.
-	Address string
+	Address string `json:"address"`
 }
 
 // SelfConfig contains configuration for metric client itself.
 type SelfConfig struct {
 	// PollInterval - interval for polling metrics
-	PollInterval time.Duration
+	PollInterval time.Duration `json:"poll_interval"`
 	// ReportInterval - interval for sending reports to server.
-	ReportInterval time.Duration
+	ReportInterval time.Duration `json:"report_interval"`
 	// Key - cryptographic hash to encoding reports.
-	Key string
+	Key string `json:"key"`
 	// PublicKeyPath - path to file with public RSA key to encrypt requests
-	PublicKeyPath *string
+	PublicKeyPath *string `json:"crypto_key"`
 }
 
 // Config describes total configuration for metric agent.
 type Config struct {
 	// Server - configuration for metric server.
-	Server ServerConfig
+	Server ServerConfig `json:"server"`
 	// Agent - configuration for agent itself.
-	Agent SelfConfig
+	Agent SelfConfig `json:"agent"`
 }
 
 // NewConfig creates total configuration for metric agent.
-func NewConfig() *Config {
+func NewConfig() (*Config, error) {
 	address := flag.String(
 		"a",
 		_serverAddress,
@@ -68,6 +69,12 @@ func NewConfig() *Config {
 		"path to file with RSA public crypto key",
 	)
 
+	configPath := flag.String(
+		"c",
+		"",
+		"path to file with agent confguration",
+	)
+
 	flag.Parse()
 
 	pollDuration := time.Duration(getEnvInt("POLL_INTERVAL", *pollInterval)) * time.Second
@@ -81,17 +88,46 @@ func NewConfig() *Config {
 		keyPath = &pubKeyPath
 	}
 
-	return &Config{
-		Server: ServerConfig{
-			Address: getEnv("ADDRESS", *address),
-		},
-		Agent: SelfConfig{
-			PollInterval:   pollDuration,
-			ReportInterval: reportDuration,
-			Key:            getEnv("KEY", *key),
-			PublicKeyPath:  keyPath,
-		},
+	if *configPath == "" {
+		return &Config{
+			Server: ServerConfig{
+				Address: getEnv("ADDRESS", *address),
+			},
+			Agent: SelfConfig{
+				PollInterval:   pollDuration,
+				ReportInterval: reportDuration,
+				Key:            getEnv("KEY", *key),
+				PublicKeyPath:  keyPath,
+			},
+		}, nil
 	}
+
+	config, err := readConfig(*configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Check env and flags and update config
+
+	return config, nil
+}
+
+func readConfig(configPath string) (*Config, error) {
+	file, err := os.Open(configPath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	dec := json.NewDecoder(file)
+
+	var config Config
+
+	if err := dec.Decode(&config); err != nil {
+		return nil, err
+	}
+
+	return &config, nil
 }
 
 func getEnv(key string, defaultVal string) string {
