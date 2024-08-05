@@ -1,0 +1,6 @@
+{
+  "database_dsn": "postgres://ak:postgres@localhost:5433/devops",
+  "address": ":8089",
+  "key": "xxx",
+  "crypto_key": "./sign/private.pem"
+}
