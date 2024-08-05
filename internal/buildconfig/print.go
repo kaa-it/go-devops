@@ -1,3 +1,4 @@
+// Package buildconfig describes function to print build variables
 package buildconfig
 
 import (

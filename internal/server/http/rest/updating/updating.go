@@ -2,8 +2,10 @@
 package updating
 
 import (
+	"crypto/rsa"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -11,6 +13,7 @@ import (
 
 	"github.com/kaa-it/go-devops/internal/api"
 	"github.com/kaa-it/go-devops/internal/gzip"
+	"github.com/kaa-it/go-devops/internal/server/decrypt"
 	"github.com/kaa-it/go-devops/internal/server/hash"
 	"github.com/kaa-it/go-devops/internal/server/updating"
 )
@@ -32,19 +35,35 @@ func NewHandler(a updating.Service, l Logger) *Handler {
 }
 
 // Route creates router for all routes controlled by the package
-func (h *Handler) Route(key string) *chi.Mux {
+func (h *Handler) Route(key string, privateKey *rsa.PrivateKey) *chi.Mux {
 	mux := chi.NewRouter()
 
-	mux.Post("/", h.l.RequestLogger(hash.Middleware(key, gzip.Middleware(h.updateJSON))))
-	mux.Post("/{category}/{name}/{value}", h.l.RequestLogger(hash.Middleware(key, h.update)))
+	mux.Post("/", h.l.RequestLogger(
+		hash.Middleware(
+			key,
+			decrypt.Middleware(
+				privateKey,
+				gzip.Middleware(h.updateJSON),
+			),
+		),
+	))
+	mux.Post("/{category}/{name}/{value}", h.l.RequestLogger(h.update))
 
 	return mux
 }
 
 // Updates returns handler for /updates route.
-func (h *Handler) Updates(key string) http.HandlerFunc {
+func (h *Handler) Updates(key string, privateKey *rsa.PrivateKey) http.HandlerFunc {
 
-	return h.l.RequestLogger(hash.Middleware(key, gzip.Middleware(h.updates)))
+	return h.l.RequestLogger(
+		hash.Middleware(
+			key,
+			decrypt.Middleware(
+				privateKey,
+				gzip.Middleware(h.updates),
+			),
+		),
+	)
 }
 
 //			@Tags	Update
@@ -224,6 +243,8 @@ func (h *Handler) updates(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Metric batch is empty", http.StatusBadRequest)
 		return
 	}
+
+	log.Println(req[0].ID)
 
 	ctx := r.Context()
 

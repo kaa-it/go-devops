@@ -27,6 +27,8 @@ type SelfConfig struct {
 	ReportInterval time.Duration
 	// Key - cryptographic hash to encoding reports.
 	Key string
+	// PublicKeyPath - path to file with public RSA key to encrypt requests
+	PublicKeyPath *string
 }
 
 // Config describes total configuration for metric agent.
@@ -60,10 +62,24 @@ func NewConfig() *Config {
 		"hash key",
 	)
 
+	publicKeyPath := flag.String(
+		"crypto-key",
+		"",
+		"path to file with RSA public crypto key",
+	)
+
 	flag.Parse()
 
 	pollDuration := time.Duration(getEnvInt("POLL_INTERVAL", *pollInterval)) * time.Second
 	reportDuration := time.Duration(getEnvInt("REPORT_INTERVAL", *reportInterval)) * time.Second
+
+	pubKeyPath := getEnv("CRYPTO_KEY", *publicKeyPath)
+
+	var keyPath *string
+
+	if pubKeyPath != "" {
+		keyPath = &pubKeyPath
+	}
 
 	return &Config{
 		Server: ServerConfig{
@@ -73,6 +89,7 @@ func NewConfig() *Config {
 			PollInterval:   pollDuration,
 			ReportInterval: reportDuration,
 			Key:            getEnv("KEY", *key),
+			PublicKeyPath:  keyPath,
 		},
 	}
 }

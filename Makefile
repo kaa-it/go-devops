@@ -32,12 +32,15 @@ pg:
 doc:
 	godoc -http=:9999
 
+# run_server:
+# 	CompileDaemon -command='./server -d postgres://ak:postgres@localhost:5432/devops -a :8089 -k xxx -crypto-key "/home/akruglov/Projects/Go/go-devops/sign/private.pem"' \
+# 	-build="go build -o server ./cmd/server"
+
 run_server:
-	CompileDaemon -command='./server -d postgres://ak:postgres@localhost:5432/devops -a :8089 -k xxx' \
-	-build="go build -o server ./cmd/server"
+	./server -d postgres://ak:postgres@localhost:5432/devops -a :8089 -k xxx -crypto-key "./sign/private.pem"
 
 run_agent:
-	./agent -a "localhost:8089" -k "xxx"
+	./agent -a "localhost:8089" -k "xxx" -crypto-key "./sign/public.pem"
 
 format:
 	goimports -w -local github.com/kaa-it/go-devops .
