@@ -57,32 +57,40 @@ import (
 	"github.com/kaa-it/go-devops/internal/staticlint"
 )
 
-func main() {
-	total := 43 +
-		len(staticcheck.Analyzers) +
-		len(simple.Analyzers) +
-		len(stylecheck.Analyzers) +
-		len(quickfix.Analyzers)
-
-	myChecks := make([]*analysis.Analyzer, 0, total)
-
+func initSAGroupAnalyzers(checks []*analysis.Analyzer) []*analysis.Analyzer {
 	for _, v := range staticcheck.Analyzers {
-		myChecks = append(myChecks, v.Analyzer)
+		checks = append(checks, v.Analyzer)
 	}
 
+	return checks
+}
+
+func initSGroupAnalyzers(checks []*analysis.Analyzer) []*analysis.Analyzer {
 	for _, v := range simple.Analyzers {
-		myChecks = append(myChecks, v.Analyzer)
+		checks = append(checks, v.Analyzer)
 	}
 
+	return checks
+}
+
+func initSTGroupAnalyzers(checks []*analysis.Analyzer) []*analysis.Analyzer {
 	for _, v := range stylecheck.Analyzers {
-		myChecks = append(myChecks, v.Analyzer)
+		checks = append(checks, v.Analyzer)
 	}
 
+	return checks
+}
+
+func initQFGroupAnalyzers(checks []*analysis.Analyzer) []*analysis.Analyzer {
 	for _, v := range quickfix.Analyzers {
-		myChecks = append(myChecks, v.Analyzer)
+		checks = append(checks, v.Analyzer)
 	}
 
-	myChecks = append(myChecks,
+	return checks
+}
+
+func initStandardAnalyzers(checks []*analysis.Analyzer) []*analysis.Analyzer {
+	return append(checks,
 		appends.Analyzer,
 		asmdecl.Analyzer,
 		assign.Analyzer,
@@ -127,6 +135,22 @@ func main() {
 		unusedwrite.Analyzer,
 		staticlint.ExitCheckAnalyzer,
 	)
+}
+
+func main() {
+	total := 43 +
+		len(staticcheck.Analyzers) +
+		len(simple.Analyzers) +
+		len(stylecheck.Analyzers) +
+		len(quickfix.Analyzers)
+
+	myChecks := make([]*analysis.Analyzer, 0, total)
+
+	myChecks = initSAGroupAnalyzers(myChecks)
+	myChecks = initSGroupAnalyzers(myChecks)
+	myChecks = initSTGroupAnalyzers(myChecks)
+	myChecks = initQFGroupAnalyzers(myChecks)
+	myChecks = initStandardAnalyzers(myChecks)
 
 	multichecker.Main(
 		myChecks...,

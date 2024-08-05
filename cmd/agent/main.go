@@ -1,13 +1,13 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/joho/godotenv"
 
 	"github.com/kaa-it/go-devops/internal/agent"
+	"github.com/kaa-it/go-devops/internal/buildconfig"
 )
 
 const (
@@ -17,16 +17,8 @@ const (
 	_retryDelay       = 2 * time.Second
 )
 
-var (
-	buildVersion string
-	buildDate    string
-	buildCommit  string
-)
-
 func main() {
-	fmt.Printf("Build version: %s\n", buildVersion)
-	fmt.Printf("Build data: %s\n", buildDate)
-	fmt.Printf("Build commit: %s\n", buildCommit)
+	buildconfig.PrintBuildInfo()
 
 	_ = godotenv.Load()
 

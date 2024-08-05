@@ -1,15 +1,21 @@
 .PHONY: build pg doc swagger
 
-SERVER_VERSION := 1.0.0
+SERVER_VERSION := 1.0.1
 AGENT_VERSION := 1.0.0
 
 COMMIT := $(shell git rev-parse --short HEAD)
 DATE := $(shell date +'%Y/%m/%d %H:%M:%S')
 
 build:
-	go build -o agent -ldflags "-X main.buildVersion=${SERVER_VERSION} -X 'main.buildDate=${DATE}' -X main.buildCommit=${COMMIT}" ./cmd/agent ;
-	go build -o server -ldflags "-X main.buildVersion=${SERVER_VERSION} -X 'main.buildDate=${DATE}' -X main.buildCommit=${COMMIT}" ./cmd/server ;
-	go build -o staticlcint ./cmd/staticlint/main.go
+	go build -o agent -ldflags \
+		"-X github.com/kaa-it/go-devops/internal/buildconfig.buildVersion=${AGENT_VERSION} \
+		-X 'github.com/kaa-it/go-devops/internal/buildconfig.buildDate=${DATE}' \
+		-X github.com/kaa-it/go-devops/internal/buildconfig.buildCommit=${COMMIT}" ./cmd/agent ;
+	go build -o server -ldflags \
+		"-X github.com/kaa-it/go-devops/internal/buildconfig.buildVersion=${SERVER_VERSION} \
+		-X 'github.com/kaa-it/go-devops/internal/buildconfig.buildDate=${DATE}' \
+		-X github.com/kaa-it/go-devops/internal/buildconfig.buildCommit=${COMMIT}" ./cmd/server ;
+	go build -o staticlint ./cmd/staticlint/main.go ;
 
 install_tools:
 	go install -v golang.org/x/tools/cmd/godoc@latest
