@@ -14,49 +14,60 @@ const (
 	_serverAddress        = "localhost:8080"
 )
 
+type configFile struct {
+	PollInterval   int    `json:"poll_interval"`
+	ReportInterval int    `json:"report_interval"`
+	Address        string `json:"address"`
+	Key            string `json:"key"`
+	PublicKeyPath  string `json:"crypto_key"`
+}
+
 // ServerConfig contains configuration if metric server
 type ServerConfig struct {
 	// Address - address of metric server.
-	Address string `json:"address"`
+	Address string
 }
 
 // SelfConfig contains configuration for metric client itself.
 type SelfConfig struct {
-	// PollInterval - interval for polling metrics
-	PollInterval time.Duration `json:"poll_interval"`
+	// PollInterval - interval for polling metrics.
+	PollInterval time.Duration
 	// ReportInterval - interval for sending reports to server.
-	ReportInterval time.Duration `json:"report_interval"`
+	ReportInterval time.Duration
 	// Key - cryptographic hash to encoding reports.
-	Key string `json:"key"`
-	// PublicKeyPath - path to file with public RSA key to encrypt requests
-	PublicKeyPath *string `json:"crypto_key"`
+	Key string
+	// PublicKeyPath - path to file with public RSA key to encrypt requests.
+	PublicKeyPath string
 }
 
 // Config describes total configuration for metric agent.
 type Config struct {
 	// Server - configuration for metric server.
-	Server ServerConfig `json:"server"`
+	Server ServerConfig
 	// Agent - configuration for agent itself.
-	Agent SelfConfig `json:"agent"`
+	Agent SelfConfig
 }
 
 // NewConfig creates total configuration for metric agent.
 func NewConfig() (*Config, error) {
 	address := flag.String(
 		"a",
-		_serverAddress,
+		"",
 		"server address",
 	)
+
 	reportInterval := flag.Int(
 		"r",
-		_reportIntervalInSecs,
+		-1,
 		"report interval (seconds)",
 	)
+
 	pollInterval := flag.Int(
 		"p",
-		_pollIntervalInSecs,
+		-1,
 		"poll interval (seconds)",
 	)
+
 	key := flag.String(
 		"k",
 		"",
@@ -72,62 +83,79 @@ func NewConfig() (*Config, error) {
 	configPath := flag.String(
 		"c",
 		"",
-		"path to file with agent confguration",
+		"path to file with agent configuration",
 	)
 
 	flag.Parse()
 
-	pollDuration := time.Duration(getEnvInt("POLL_INTERVAL", *pollInterval)) * time.Second
-	reportDuration := time.Duration(getEnvInt("REPORT_INTERVAL", *reportInterval)) * time.Second
+	configFilePath := getEnv("CONFIG", *configPath)
 
-	pubKeyPath := getEnv("CRYPTO_KEY", *publicKeyPath)
-
-	var keyPath *string
-
-	if pubKeyPath != "" {
-		keyPath = &pubKeyPath
+	config := configFile{
+		PollInterval:   _pollIntervalInSecs,
+		ReportInterval: _reportIntervalInSecs,
+		Address:        _serverAddress,
+		Key:            "",
+		PublicKeyPath:  "",
 	}
 
-	if *configPath == "" {
-		return &Config{
-			Server: ServerConfig{
-				Address: getEnv("ADDRESS", *address),
-			},
-			Agent: SelfConfig{
-				PollInterval:   pollDuration,
-				ReportInterval: reportDuration,
-				Key:            getEnv("KEY", *key),
-				PublicKeyPath:  keyPath,
-			},
-		}, nil
+	if configFilePath != "" {
+		if err := readConfig(configFilePath, &config); err != nil {
+			return nil, err
+		}
 	}
 
-	config, err := readConfig(*configPath)
-	if err != nil {
-		return nil, err
+	if *address != "" {
+		config.Address = *address
 	}
 
-	// TODO: Check env and flags and update config
+	if *reportInterval != -1 {
+		config.ReportInterval = *reportInterval
+	}
 
-	return config, nil
+	if *pollInterval != -1 {
+		config.PollInterval = *pollInterval
+	}
+
+	if *key != "" {
+		config.Key = *key
+	}
+
+	if *publicKeyPath != "" {
+		config.PublicKeyPath = *publicKeyPath
+	}
+
+	pollDuration := time.Duration(getEnvInt("POLL_INTERVAL", config.PollInterval)) * time.Second
+	reportDuration := time.Duration(getEnvInt("REPORT_INTERVAL", config.ReportInterval)) * time.Second
+
+	return &Config{
+		Server: ServerConfig{
+			Address: getEnv("ADDRESS", config.Address),
+		},
+		Agent: SelfConfig{
+			PollInterval:   pollDuration,
+			ReportInterval: reportDuration,
+			Key:            getEnv("KEY", config.Key),
+			PublicKeyPath:  getEnv("CRYPTO_KEY", config.PublicKeyPath),
+		},
+	}, nil
 }
 
-func readConfig(configPath string) (*Config, error) {
+func readConfig(configPath string, config *configFile) error {
 	file, err := os.Open(configPath)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	dec := json.NewDecoder(file)
 
-	var config Config
-
-	if err := dec.Decode(&config); err != nil {
-		return nil, err
+	if err := dec.Decode(config); err != nil {
+		return err
 	}
 
-	return &config, nil
+	return nil
 }
 
 func getEnv(key string, defaultVal string) string {

@@ -14,7 +14,11 @@ func main() {
 
 	_ = godotenv.Load()
 
-	config := server.NewConfig()
+	config, err := server.NewConfig()
+	if err != nil {
+		log.Printf("failed to load config: %s", err)
+		return
+	}
 
 	s, err := server.New(config)
 	if err != nil {

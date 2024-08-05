@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"flag"
 	"os"
 	"strconv"
@@ -18,6 +19,17 @@ const (
 	_restore             = true
 )
 
+type configFile struct {
+	Address        string `json:"address"`
+	Restore        bool   `json:"restore"`
+	StoreInterval  int    `json:"store_interval"`
+	StoreFilePath  string `json:"store_file"`
+	DatabaseDSN    string `json:"database_dsn"`
+	Key            string `json:"key"`
+	PrivateKeyPath string `json:"crypto_key"`
+	LogLevel       string `json:"log_level"`
+}
+
 // SelfConfig contains configuration for the server itself.
 type SelfConfig struct {
 	// Address - address to listen by server.
@@ -27,7 +39,7 @@ type SelfConfig struct {
 	// Key - cryptographic key for decoding update requests.
 	Key string
 	// PrivateKeyPath - path to file with private RSA key to dencrypt requests
-	PrivateKeyPath *string
+	PrivateKeyPath string
 }
 
 // Config contains total configuration for server.
@@ -41,28 +53,28 @@ type Config struct {
 }
 
 // NewConfig creates total server configuration.
-func NewConfig() *Config {
+func NewConfig() (*Config, error) {
 	address := flag.String(
 		"a",
-		_serverAddress,
+		"",
 		"server address as \"host:port\"",
 	)
 
 	logLevel := flag.String(
 		"l",
-		_logLevel,
+		"",
 		"log level",
 	)
 
 	storeInterval := flag.Int(
 		"i",
-		_storeIntervalInSecs,
+		-1,
 		"store interval (seconds)",
 	)
 
 	storeFilePath := flag.String(
 		"f",
-		_storeFilePath,
+		"",
 		"store file path",
 	)
 
@@ -90,34 +102,101 @@ func NewConfig() *Config {
 		"path to file with RSA private crypto key",
 	)
 
+	configPath := flag.String(
+		"c",
+		"",
+		"path to file with server configuration",
+	)
+
 	flag.Parse()
 
-	storeDuration := time.Duration(getEnvInt("STORE_INTERVAL", *storeInterval)) * time.Second
+	configFilePath := getEnv("CONFIG", *configPath)
 
-	privKeyPath := getEnv("CRYPTO_KEY", *privateKeyPath)
-
-	var keyPath *string
-
-	if privKeyPath != "" {
-		keyPath = &privKeyPath
+	config := configFile{
+		Address:        _serverAddress,
+		Restore:        _restore,
+		StoreInterval:  _storeIntervalInSecs,
+		StoreFilePath:  _storeFilePath,
+		DatabaseDSN:    "",
+		Key:            "",
+		PrivateKeyPath: "",
+		LogLevel:       _logLevel,
 	}
+
+	if configFilePath != "" {
+		if err := readConfig(configFilePath, &config); err != nil {
+			return nil, err
+		}
+	}
+
+	if *address != "" {
+		config.Address = *address
+	}
+
+	if *restore != config.Restore {
+		config.Restore = *restore
+	}
+
+	if *storeInterval != -1 {
+		config.StoreInterval = *storeInterval
+	}
+
+	if *storeFilePath != "" {
+		config.StoreFilePath = *storeFilePath
+	}
+
+	if *dsn != "" {
+		config.DatabaseDSN = *dsn
+	}
+
+	if *key != "" {
+		config.Key = *key
+	}
+
+	if *privateKeyPath != "" {
+		config.PrivateKeyPath = *privateKeyPath
+	}
+
+	if *logLevel != "" {
+		config.LogLevel = *logLevel
+	}
+
+	storeDuration := time.Duration(getEnvInt("STORE_INTERVAL", config.StoreInterval)) * time.Second
 
 	return &Config{
 		Server: SelfConfig{
-			Address:        getEnv("ADDRESS", *address),
-			LogLevel:       getEnv("LOG_LEVEL", *logLevel),
-			Key:            getEnv("KEY", *key),
-			PrivateKeyPath: keyPath,
+			Address:        getEnv("ADDRESS", config.Address),
+			LogLevel:       getEnv("LOG_LEVEL", config.LogLevel),
+			Key:            getEnv("KEY", config.Key),
+			PrivateKeyPath: getEnv("CRYPTO_KEY", config.PrivateKeyPath),
 		},
 		Storage: memory.StorageConfig{
 			StoreInterval: storeDuration,
-			StoreFilePath: getEnv("FILE_STORAGE_PATH", *storeFilePath),
-			Restore:       getEnvBool("RESTORE", *restore),
+			StoreFilePath: getEnv("FILE_STORAGE_PATH", config.StoreFilePath),
+			Restore:       getEnvBool("RESTORE", config.Restore),
 		},
 		DBStorage: db.StorageConfig{
-			DSN: getEnv("DATABASE_DSN", *dsn),
+			DSN: getEnv("DATABASE_DSN", config.DatabaseDSN),
 		},
+	}, nil
+}
+
+func readConfig(configPath string, config *configFile) error {
+	file, err := os.Open(configPath)
+	if err != nil {
+		return err
 	}
+	defer func() {
+		_ = file.Close()
+	}()
+
+	dec := json.NewDecoder(file)
+
+	if err := dec.Decode(config); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func getEnv(key string, defaultVal string) string {

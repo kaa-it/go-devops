@@ -53,8 +53,8 @@ func New(client *resty.Client, config *Config) (*Agent, error) {
 
 	var publicKey *rsa.PublicKey
 
-	if config.Agent.PublicKeyPath != nil {
-		publicKeyPEM, err := os.ReadFile(*config.Agent.PublicKeyPath)
+	if config.Agent.PublicKeyPath != "" {
+		publicKeyPEM, err := os.ReadFile(config.Agent.PublicKeyPath)
 		if err != nil {
 			return nil, err
 		}

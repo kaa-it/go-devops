@@ -41,8 +41,8 @@ type Server struct {
 func New(config *Config) (*Server, error) {
 	var privateKey *rsa.PrivateKey
 
-	if config.Server.PrivateKeyPath != nil {
-		privateKeyPEM, err := os.ReadFile(*config.Server.PrivateKeyPath)
+	if config.Server.PrivateKeyPath != "" {
+		privateKeyPEM, err := os.ReadFile(config.Server.PrivateKeyPath)
 		if err != nil {
 			return nil, err
 		}
