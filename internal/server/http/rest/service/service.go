@@ -1,3 +1,4 @@
+// Package service describes handlers for server health check
 package service
 
 import (

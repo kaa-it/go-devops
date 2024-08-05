@@ -7,6 +7,7 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/kaa-it/go-devops/internal/agent"
+	"github.com/kaa-it/go-devops/internal/buildconfig"
 )
 
 const (
@@ -17,6 +18,8 @@ const (
 )
 
 func main() {
+	buildconfig.PrintBuildInfo()
+
 	_ = godotenv.Load()
 
 	config := agent.NewConfig()

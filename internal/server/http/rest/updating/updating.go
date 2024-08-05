@@ -1,3 +1,4 @@
+// Package updating describes handlers for update metric at server
 package updating
 
 import (

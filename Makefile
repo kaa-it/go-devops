@@ -1,8 +1,21 @@
 .PHONY: build pg doc swagger
 
+SERVER_VERSION := 1.0.1
+AGENT_VERSION := 1.0.0
+
+COMMIT := $(shell git rev-parse --short HEAD)
+DATE := $(shell date +'%Y/%m/%d %H:%M:%S')
+
 build:
-	go build -o agent ./cmd/agent ;
-	go build -o server ./cmd/server ;
+	go build -o agent -ldflags \
+		"-X github.com/kaa-it/go-devops/internal/buildconfig.buildVersion=${AGENT_VERSION} \
+		-X 'github.com/kaa-it/go-devops/internal/buildconfig.buildDate=${DATE}' \
+		-X github.com/kaa-it/go-devops/internal/buildconfig.buildCommit=${COMMIT}" ./cmd/agent ;
+	go build -o server -ldflags \
+		"-X github.com/kaa-it/go-devops/internal/buildconfig.buildVersion=${SERVER_VERSION} \
+		-X 'github.com/kaa-it/go-devops/internal/buildconfig.buildDate=${DATE}' \
+		-X github.com/kaa-it/go-devops/internal/buildconfig.buildCommit=${COMMIT}" ./cmd/server ;
+	go build -o staticlint ./cmd/staticlint/main.go ;
 
 install_tools:
 	go install -v golang.org/x/tools/cmd/godoc@latest
@@ -30,7 +43,7 @@ format:
 	goimports -w -local github.com/kaa-it/go-devops .
 
 cover:
-	go test -v -coverprofile cover.out	./...
+	go test -v -coverprofile cover.out ./... && grep -v "mock_" cover.out > filtered_cover.out && go tool cover -func=filtered_cover.out
 
 test:
 	go vet --vettool=$(which statictest) ./... ;
