@@ -26,6 +26,8 @@ type SelfConfig struct {
 	LogLevel string
 	// Key - cryptographic key for decoding update requests.
 	Key string
+	// PrivateKeyPath - path to file with private RSA key to dencrypt requests
+	PrivateKeyPath *string
 }
 
 // Config contains total configuration for server.
@@ -82,15 +84,30 @@ func NewConfig() *Config {
 		"hash key",
 	)
 
+	privateKeyPath := flag.String(
+		"crypto-key",
+		"",
+		"path to file with RSA private crypto key",
+	)
+
 	flag.Parse()
 
 	storeDuration := time.Duration(getEnvInt("STORE_INTERVAL", *storeInterval)) * time.Second
 
+	privKeyPath := getEnv("CRYPTO_KEY", *privateKeyPath)
+
+	var keyPath *string
+
+	if privKeyPath != "" {
+		keyPath = &privKeyPath
+	}
+
 	return &Config{
 		Server: SelfConfig{
-			Address:  getEnv("ADDRESS", *address),
-			LogLevel: getEnv("LOG_LEVEL", *logLevel),
-			Key:      getEnv("KEY", *key),
+			Address:        getEnv("ADDRESS", *address),
+			LogLevel:       getEnv("LOG_LEVEL", *logLevel),
+			Key:            getEnv("KEY", *key),
+			PrivateKeyPath: keyPath,
 		},
 		Storage: memory.StorageConfig{
 			StoreInterval: storeDuration,

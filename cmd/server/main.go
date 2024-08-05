@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"github.com/joho/godotenv"
 
 	"github.com/kaa-it/go-devops/internal/buildconfig"
@@ -14,7 +16,11 @@ func main() {
 
 	config := server.NewConfig()
 
-	s := server.New(config)
+	s, err := server.New(config)
+	if err != nil {
+		log.Printf("failed to create server: %s", err)
+		return
+	}
 
 	s.Run()
 }

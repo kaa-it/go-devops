@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -32,7 +33,11 @@ func main() {
 		return _retryDelay, nil
 	})
 
-	metricsAgent := agent.New(client, config)
+	metricsAgent, err := agent.New(client, config)
+	if err != nil {
+		log.Printf("failed to create agent: %s", err)
+		return
+	}
 
 	metricsAgent.Run()
 }
