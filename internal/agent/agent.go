@@ -8,12 +8,16 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/hmac"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"log"
-	"math/rand"
+	math "math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -35,22 +39,46 @@ const (
 
 // Agent describes metric agent.
 type Agent struct {
-	storage *Storage
-	config  *Config
-	client  *resty.Client
+	storage   *Storage
+	config    *Config
+	client    *resty.Client
+	publicKey *rsa.PublicKey
 }
 
 // New creates new metric agent
 //
 // Takes client to connect to metric server and config with total configuration of agent.
-func New(client *resty.Client, config *Config) *Agent {
+func New(client *resty.Client, config *Config) (*Agent, error) {
 	client.SetTimeout(_requestTimeout)
 
-	return &Agent{
-		storage: NewStorage(),
-		config:  config,
-		client:  client,
+	var publicKey *rsa.PublicKey
+
+	if config.Agent.PublicKeyPath != "" {
+		publicKeyPEM, err := os.ReadFile(config.Agent.PublicKeyPath)
+		if err != nil {
+			return nil, err
+		}
+
+		publicKeyBlock, _ := pem.Decode(publicKeyPEM)
+		pub, err := x509.ParsePKIXPublicKey(publicKeyBlock.Bytes)
+		if err != nil {
+			return nil, err
+		}
+
+		pubKey, ok := pub.(*rsa.PublicKey)
+		if !ok {
+			return nil, fmt.Errorf("wrong key format")
+		}
+
+		publicKey = pubKey
 	}
+
+	return &Agent{
+		storage:   NewStorage(),
+		config:    config,
+		client:    client,
+		publicKey: publicKey,
+	}, nil
 }
 
 // Run runs metric agent and control its lifecycle.
@@ -160,7 +188,7 @@ func (a *Agent) poll() {
 	a.storage.UpdateGauge("TotalAlloc", float64(stats.TotalAlloc))
 
 	a.storage.UpdateCounter("PollCount", 1)
-	a.storage.UpdateGauge("RandomValue", rand.Float64())
+	a.storage.UpdateGauge("RandomValue", math.Float64())
 
 	log.Println("Poll done")
 }
@@ -206,7 +234,10 @@ func (a *Agent) sendMetrics(metrics []api.Metrics) error {
 
 	req.URL = url
 
-	req.Header.Set("Content-Type", "application/json")
+	if a.publicKey != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
 	req.Header.Set("Content-Encoding", "gzip")
 
 	buf := bytes.NewBuffer(nil)
@@ -221,10 +252,22 @@ func (a *Agent) sendMetrics(metrics []api.Metrics) error {
 		return fmt.Errorf("failed to close gzip writer: %w", err)
 	}
 
-	req.SetBody(buf)
+	var body []byte
+
+	if a.publicKey == nil {
+		body = buf.Bytes()
+	} else {
+		var err error
+		body, err = a.encrypt(buf)
+		if err != nil {
+			return fmt.Errorf("failed to encrypt message: %w", err)
+		}
+	}
+
+	req.SetBody(body)
 
 	if len(a.config.Agent.Key) > 0 {
-		req.Header.Set("Hash", a.calculateHash(buf.Bytes()))
+		req.Header.Set("Hash", a.calculateHash(body))
 	}
 
 	resp, err := req.Send()
@@ -237,6 +280,30 @@ func (a *Agent) sendMetrics(metrics []api.Metrics) error {
 	}
 
 	return nil
+}
+
+func (a *Agent) encrypt(buf *bytes.Buffer) ([]byte, error) {
+	encrypted := make([]byte, 0, buf.Len())
+
+	step := a.publicKey.Size() - 11
+	total := buf.Len()
+	msg := buf.Bytes()
+
+	for start := 0; start < total; start += step {
+		finish := start + step
+		if finish > total {
+			finish = total
+		}
+
+		cipher, err := rsa.EncryptPKCS1v15(rand.Reader, a.publicKey, msg[start:finish])
+		if err != nil {
+			return nil, err
+		}
+
+		encrypted = append(encrypted, cipher...)
+	}
+
+	return encrypted, nil
 }
 
 func (a *Agent) calculateHash(msg []byte) string {

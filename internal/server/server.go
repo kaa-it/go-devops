@@ -3,6 +3,9 @@ package server
 
 import (
 	"context"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"net/http"
@@ -30,14 +33,32 @@ import (
 
 // Server describes metric server.
 type Server struct {
-	config *Config
+	config     *Config
+	privateKey *rsa.PrivateKey
 }
 
 // New creates metric server instance.
-func New(config *Config) *Server {
-	return &Server{
-		config: config,
+func New(config *Config) (*Server, error) {
+	var privateKey *rsa.PrivateKey
+
+	if config.Server.PrivateKeyPath != "" {
+		privateKeyPEM, err := os.ReadFile(config.Server.PrivateKeyPath)
+		if err != nil {
+			return nil, err
+		}
+		privateKeyBlock, _ := pem.Decode(privateKeyPEM)
+		privKey, err := x509.ParsePKCS1PrivateKey(privateKeyBlock.Bytes)
+		if err != nil {
+			return nil, err
+		}
+
+		privateKey = privKey
 	}
+
+	return &Server{
+		config:     config,
+		privateKey: privateKey,
+	}, nil
 }
 
 // Run runs server and controls its lifecycle.
@@ -143,9 +164,9 @@ func (s *Server) initMemory(log *logger.Logger) (*chi.Mux, *memory.Storage, erro
 
 	r := chi.NewRouter()
 
-	r.Mount("/update", updatingHandler.Route(s.config.Server.Key))
+	r.Mount("/update", updatingHandler.Route(s.config.Server.Key, s.privateKey))
 	r.Mount("/", viewingHandler.Route())
-	r.Mount("/updates", updatingHandler.Updates(s.config.Server.Key))
+	r.Mount("/updates", updatingHandler.Updates(s.config.Server.Key, s.privateKey))
 	r.Mount("/swagger", httpSwagger.WrapHandler)
 
 	return r, storage, nil
@@ -171,10 +192,10 @@ func (s *Server) initDB(log *logger.Logger) (*chi.Mux, *db.Storage, error) {
 
 	r := chi.NewRouter()
 
-	r.Mount("/update", updatingHandler.Route(s.config.Server.Key))
+	r.Mount("/update", updatingHandler.Route(s.config.Server.Key, s.privateKey))
 	r.Mount("/", viewingHandler.Route())
 	r.Mount("/ping", serviceHandler.Route())
-	r.Mount("/updates", updatingHandler.Updates(s.config.Server.Key))
+	r.Mount("/updates", updatingHandler.Updates(s.config.Server.Key, s.privateKey))
 	r.Mount("/swagger", httpSwagger.WrapHandler)
 
 	return r, storage, nil

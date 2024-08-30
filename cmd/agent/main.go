@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -22,7 +23,12 @@ func main() {
 
 	_ = godotenv.Load()
 
-	config := agent.NewConfig()
+	config, err := agent.NewConfig()
+	if err != nil {
+		log.Printf("failed to load config: %s", err)
+		return
+	}
+
 	client := resty.New()
 
 	client.SetRetryCount(_retryCount)
@@ -32,7 +38,11 @@ func main() {
 		return _retryDelay, nil
 	})
 
-	metricsAgent := agent.New(client, config)
+	metricsAgent, err := agent.New(client, config)
+	if err != nil {
+		log.Printf("failed to create agent: %s", err)
+		return
+	}
 
 	metricsAgent.Run()
 }
