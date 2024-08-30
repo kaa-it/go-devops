@@ -37,7 +37,7 @@ doc:
 # 	-build="go build -o server ./cmd/server"
 
 run_server:
-	./server -d postgres://ak:postgres@localhost:5433/devops -a :8089 -k xxx -crypto-key "./sign/private.pem"
+	./server -d postgres://ak:postgres@localhost:5432/devops -a :8089 -k xxx -crypto-key "./sign/private.pem" -t "192.168.1.0/24"
 
 run_agent:
 	./agent -a "localhost:8089" -k "xxx" -crypto-key "./sign/public.pem"

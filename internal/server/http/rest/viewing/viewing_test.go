@@ -126,7 +126,7 @@ func TestViewHandler(t *testing.T) {
 			h = NewHandler(s, l)
 
 			r := chi.NewRouter()
-			r.Mount("/", h.Route())
+			r.Mount("/", h.Route(""))
 
 			srv := httptest.NewServer(r)
 
@@ -274,7 +274,7 @@ func TestViewJSONHandler(t *testing.T) {
 			h = NewHandler(s, l)
 
 			r := chi.NewRouter()
-			r.Mount("/", h.Route())
+			r.Mount("/", h.Route(""))
 
 			srv := httptest.NewServer(r)
 
@@ -337,7 +337,7 @@ func TestViewJSONGzip(t *testing.T) {
 		h = NewHandler(s, l)
 
 		r := chi.NewRouter()
-		r.Mount("/", h.Route())
+		r.Mount("/", h.Route(""))
 
 		srv := httptest.NewServer(r)
 
