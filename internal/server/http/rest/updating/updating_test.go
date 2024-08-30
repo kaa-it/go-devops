@@ -115,7 +115,7 @@ func TestUpdateHandler(t *testing.T) {
 			h = NewHandler(s, l)
 
 			r := chi.NewRouter()
-			r.Mount("/update", h.Route("", nil))
+			r.Mount("/update", h.Route("", nil, ""))
 
 			srv := httptest.NewServer(r)
 
@@ -260,7 +260,7 @@ func TestJSONUpdateHandler(t *testing.T) {
 			h = NewHandler(s, l)
 
 			r := chi.NewRouter()
-			r.Mount("/update", h.Route("", nil))
+			r.Mount("/update", h.Route("", nil, ""))
 
 			srv := httptest.NewServer(r)
 
@@ -329,7 +329,7 @@ func TestUpdateGzip(t *testing.T) {
 		h = NewHandler(s, l)
 
 		r := chi.NewRouter()
-		r.Mount("/update", h.Route("", nil))
+		r.Mount("/update", h.Route("", nil, ""))
 
 		srv := httptest.NewServer(r)
 
@@ -386,7 +386,7 @@ func TestUpdateGzip(t *testing.T) {
 		h = NewHandler(s, l)
 
 		r := chi.NewRouter()
-		r.Mount("/update", h.Route("", nil))
+		r.Mount("/update", h.Route("", nil, ""))
 
 		srv := httptest.NewServer(r)
 

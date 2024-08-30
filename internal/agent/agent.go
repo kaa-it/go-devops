@@ -15,9 +15,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"log"
 	math "math/rand"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -72,6 +74,13 @@ func New(client *resty.Client, config *Config) (*Agent, error) {
 
 		publicKey = pubKey
 	}
+
+	ip, err := resolveHostIP()
+	if err != nil {
+		return nil, err
+	}
+
+	client.SetHeader("X-Real-IP", ip)
 
 	return &Agent{
 		storage:   NewStorage(),
@@ -331,4 +340,27 @@ func (a *Agent) applyCounter(name string, value int64, metrics []api.Metrics) []
 	}
 
 	return append(metrics, m)
+}
+
+func resolveHostIP() (string, error) {
+
+	netInterfaceAddresses, err := net.InterfaceAddrs()
+
+	if err != nil {
+		return "", err
+	}
+
+	for _, netInterfaceAddress := range netInterfaceAddresses {
+
+		networkIP, ok := netInterfaceAddress.(*net.IPNet)
+
+		if ok && !networkIP.IP.IsLoopback() && networkIP.IP.To4() != nil {
+
+			ip := networkIP.IP.String()
+
+			return ip, nil
+		}
+	}
+
+	return "", errors.New("address not found")
 }
