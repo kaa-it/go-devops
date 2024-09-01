@@ -39,7 +39,7 @@ type SelfConfig struct {
 	LogLevel string
 	// Key - cryptographic key for decoding update requests.
 	Key string
-	// PrivateKeyPath - path to file with private RSA key to dencrypt requests
+	// PrivateKeyPath - path to file with private RSA key to decrypt requests
 	PrivateKeyPath string
 	// TrustedSubnet - trusted subnet CIDR
 	TrustedSubnet string

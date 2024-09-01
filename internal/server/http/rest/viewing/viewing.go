@@ -4,11 +4,12 @@ package viewing
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/kaa-it/go-devops/internal/server/trusted"
 	"html/template"
 	"log"
 	"net/http"
 	"strconv"
+
+	"github.com/kaa-it/go-devops/internal/server/trusted"
 
 	"github.com/go-chi/chi/v5"
 

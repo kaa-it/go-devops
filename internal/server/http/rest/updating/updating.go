@@ -5,9 +5,10 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
-	"github.com/kaa-it/go-devops/internal/server/trusted"
 	"net/http"
 	"strconv"
+
+	"github.com/kaa-it/go-devops/internal/server/trusted"
 
 	"github.com/go-chi/chi/v5"
 

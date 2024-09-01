@@ -32,6 +32,11 @@ pg:
 doc:
 	godoc -http=:9999
 
+proto:
+	protoc --go_out=. --go_opt=paths=source_relative \
+      --go-grpc_out=. --go-grpc_opt=paths=source_relative \
+      internal/proto/metrics.proto
+
 # run_server:
 # 	CompileDaemon -command='./server -d postgres://ak:postgres@localhost:5432/devops -a :8089 -k xxx -crypto-key "/home/akruglov/Projects/Go/go-devops/sign/private.pem"' \
 # 	-build="go build -o server ./cmd/server"
