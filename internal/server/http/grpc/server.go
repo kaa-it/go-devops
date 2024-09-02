@@ -7,10 +7,10 @@ import (
 	"net"
 
 	"google.golang.org/grpc"
+	_ "google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/kaa-it/go-devops/internal/api"
-
 	pb "github.com/kaa-it/go-devops/internal/proto"
 	"github.com/kaa-it/go-devops/internal/server/updating"
 )
