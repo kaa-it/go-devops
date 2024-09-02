@@ -19,6 +19,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	httpSwagger "github.com/swaggo/http-swagger"
 
+	"github.com/kaa-it/go-devops/internal/server/http/grpc"
 	serviceRest "github.com/kaa-it/go-devops/internal/server/http/rest/service"
 	updatingRest "github.com/kaa-it/go-devops/internal/server/http/rest/updating"
 	viewingRest "github.com/kaa-it/go-devops/internal/server/http/rest/viewing"
@@ -77,17 +78,18 @@ func (s *Server) Run() {
 
 	var r *chi.Mux
 	var storage *memory.Storage
+	var updater updating.Service
 
 	if s.config.DBStorage.DSN != "" {
 		var storage *db.Storage
-		r, storage, err = s.initDB(log)
+		r, storage, updater, err = s.initDB(log)
 		if err != nil {
 			log.Fatal(err.Error())
 		}
 
 		defer storage.Close()
 	} else {
-		r, storage, err = s.initMemory(log)
+		r, storage, updater, err = s.initMemory(log)
 		if err != nil {
 			log.Fatal(err.Error())
 		}
@@ -102,6 +104,8 @@ func (s *Server) Run() {
 		Addr: ":7777",
 	}
 
+	grpcServer := grpc.NewServer(log, updater)
+
 	var wg sync.WaitGroup
 
 	wg.Add(2)
@@ -113,6 +117,18 @@ func (s *Server) Run() {
 			log.Error(fmt.Sprintf("pprof server failed: %s", err.Error()))
 		}
 	}()
+
+	if s.config.Server.GRPCAddress != "" {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			if err = grpcServer.Run(s.config.Server.GRPCAddress); err != nil {
+				log.Error(fmt.Sprintf("grpc server failed: %s", err.Error()))
+			}
+		}()
+	}
 
 	go func() {
 		<-c
@@ -129,6 +145,10 @@ func (s *Server) Run() {
 
 		if err = pprofServer.Shutdown(ctx); err != nil {
 			log.Error(err.Error())
+		}
+
+		if s.config.Server.GRPCAddress != "" {
+			grpcServer.Stop()
 		}
 
 		wg.Done()
@@ -150,10 +170,10 @@ func (s *Server) Run() {
 	}
 }
 
-func (s *Server) initMemory(log *logger.Logger) (*chi.Mux, *memory.Storage, error) {
+func (s *Server) initMemory(log *logger.Logger) (*chi.Mux, *memory.Storage, updating.Service, error) {
 	storage, err := memory.NewStorage(&s.config.Storage)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	updater := updating.NewService(storage)
@@ -164,22 +184,22 @@ func (s *Server) initMemory(log *logger.Logger) (*chi.Mux, *memory.Storage, erro
 
 	r := chi.NewRouter()
 
-	r.Mount("/update", updatingHandler.Route(s.config.Server.Key, s.privateKey))
-	r.Mount("/", viewingHandler.Route())
-	r.Mount("/updates", updatingHandler.Updates(s.config.Server.Key, s.privateKey))
+	r.Mount("/update", updatingHandler.Route(s.config.Server.Key, s.privateKey, s.config.Server.TrustedSubnet))
+	r.Mount("/", viewingHandler.Route(s.config.Server.TrustedSubnet))
+	r.Mount("/updates", updatingHandler.Updates(s.config.Server.Key, s.privateKey, s.config.Server.TrustedSubnet))
 	r.Mount("/swagger", httpSwagger.WrapHandler)
 
-	return r, storage, nil
+	return r, storage, updater, nil
 }
 
-func (s *Server) initDB(log *logger.Logger) (*chi.Mux, *db.Storage, error) {
+func (s *Server) initDB(log *logger.Logger) (*chi.Mux, *db.Storage, updating.Service, error) {
 	storage, err := db.NewStorage(&s.config.DBStorage)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	if err := storage.Initialize(context.Background()); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	updater := updating.NewService(storage)
@@ -192,11 +212,11 @@ func (s *Server) initDB(log *logger.Logger) (*chi.Mux, *db.Storage, error) {
 
 	r := chi.NewRouter()
 
-	r.Mount("/update", updatingHandler.Route(s.config.Server.Key, s.privateKey))
-	r.Mount("/", viewingHandler.Route())
+	r.Mount("/update", updatingHandler.Route(s.config.Server.Key, s.privateKey, s.config.Server.TrustedSubnet))
+	r.Mount("/", viewingHandler.Route(s.config.Server.TrustedSubnet))
 	r.Mount("/ping", serviceHandler.Route())
-	r.Mount("/updates", updatingHandler.Updates(s.config.Server.Key, s.privateKey))
+	r.Mount("/updates", updatingHandler.Updates(s.config.Server.Key, s.privateKey, s.config.Server.TrustedSubnet))
 	r.Mount("/swagger", httpSwagger.WrapHandler)
 
-	return r, storage, nil
+	return r, storage, updater, nil
 }

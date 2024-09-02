@@ -32,15 +32,20 @@ pg:
 doc:
 	godoc -http=:9999
 
+proto:
+	protoc --go_out=. --go_opt=paths=source_relative \
+      --go-grpc_out=. --go-grpc_opt=paths=source_relative \
+      internal/proto/metrics.proto
+
 # run_server:
 # 	CompileDaemon -command='./server -d postgres://ak:postgres@localhost:5432/devops -a :8089 -k xxx -crypto-key "/home/akruglov/Projects/Go/go-devops/sign/private.pem"' \
 # 	-build="go build -o server ./cmd/server"
 
 run_server:
-	./server -d postgres://ak:postgres@localhost:5433/devops -a :8089 -k xxx -crypto-key "./sign/private.pem"
+	./server -d postgres://ak:postgres@localhost:5432/devops -a :8089 -g :3200 -k xxx -crypto-key "./sign/private.pem" -t "192.168.1.0/24"
 
 run_agent:
-	./agent -a "localhost:8089" -k "xxx" -crypto-key "./sign/public.pem"
+	./agent -g "localhost:3200" -k "xxx" -crypto-key "./sign/public.pem"
 
 format:
 	goimports -w -local github.com/kaa-it/go-devops .

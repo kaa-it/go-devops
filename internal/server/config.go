@@ -28,6 +28,8 @@ type configFile struct {
 	Key            string `json:"key"`
 	PrivateKeyPath string `json:"crypto_key"`
 	LogLevel       string `json:"log_level"`
+	TrustedSubnet  string `json:"trusted_subnet"`
+	GRPCAddress    string `json:"grpc_address"`
 }
 
 // SelfConfig contains configuration for the server itself.
@@ -38,8 +40,12 @@ type SelfConfig struct {
 	LogLevel string
 	// Key - cryptographic key for decoding update requests.
 	Key string
-	// PrivateKeyPath - path to file with private RSA key to dencrypt requests
+	// PrivateKeyPath - path to file with private RSA key to decrypt requests
 	PrivateKeyPath string
+	// TrustedSubnet - trusted subnet CIDR
+	TrustedSubnet string
+	// GRPCAddress - address for GRPC server (optional)
+	GRPCAddress string
 }
 
 // Config contains total configuration for server.
@@ -108,6 +114,18 @@ func NewConfig() (*Config, error) {
 		"path to file with server configuration",
 	)
 
+	trustedSubnet := flag.String(
+		"t",
+		"",
+		"trusted subnet CIDR",
+	)
+
+	grpcAddress := flag.String(
+		"g",
+		"",
+		"GRPC server address",
+	)
+
 	flag.Parse()
 
 	configFilePath := getEnv("CONFIG", *configPath)
@@ -121,6 +139,8 @@ func NewConfig() (*Config, error) {
 		Key:            "",
 		PrivateKeyPath: "",
 		LogLevel:       _logLevel,
+		TrustedSubnet:  "",
+		GRPCAddress:    "",
 	}
 
 	if configFilePath != "" {
@@ -161,6 +181,14 @@ func NewConfig() (*Config, error) {
 		config.LogLevel = *logLevel
 	}
 
+	if *trustedSubnet != "" {
+		config.TrustedSubnet = *trustedSubnet
+	}
+
+	if *grpcAddress != "" {
+		config.GRPCAddress = *grpcAddress
+	}
+
 	storeDuration := time.Duration(getEnvInt("STORE_INTERVAL", config.StoreInterval)) * time.Second
 
 	return &Config{
@@ -169,6 +197,8 @@ func NewConfig() (*Config, error) {
 			LogLevel:       getEnv("LOG_LEVEL", config.LogLevel),
 			Key:            getEnv("KEY", config.Key),
 			PrivateKeyPath: getEnv("CRYPTO_KEY", config.PrivateKeyPath),
+			TrustedSubnet:  getEnv("TRUSTED_SUBNET", config.TrustedSubnet),
+			GRPCAddress:    getEnv("GRPC_ADDRESS", config.GRPCAddress),
 		},
 		Storage: memory.StorageConfig{
 			StoreInterval: storeDuration,

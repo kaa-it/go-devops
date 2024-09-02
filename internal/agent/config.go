@@ -2,6 +2,7 @@ package agent
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"os"
 	"strconv"
@@ -11,7 +12,6 @@ import (
 const (
 	_pollIntervalInSecs   = 2
 	_reportIntervalInSecs = 10
-	_serverAddress        = "localhost:8080"
 )
 
 type configFile struct {
@@ -20,12 +20,15 @@ type configFile struct {
 	Address        string `json:"address"`
 	Key            string `json:"key"`
 	PublicKeyPath  string `json:"crypto_key"`
+	GRPCAddress    string `json:"grpc_address"`
 }
 
 // ServerConfig contains configuration if metric server
 type ServerConfig struct {
 	// Address - address of metric server.
 	Address string
+	// GRPSAddress - address of GRPC metric server.
+	GRPCAddress string
 }
 
 // SelfConfig contains configuration for metric client itself.
@@ -86,6 +89,12 @@ func NewConfig() (*Config, error) {
 		"path to file with agent configuration",
 	)
 
+	grpcAddress := flag.String(
+		"g",
+		"",
+		"address of GRPC server",
+	)
+
 	flag.Parse()
 
 	configFilePath := getEnv("CONFIG", *configPath)
@@ -93,9 +102,10 @@ func NewConfig() (*Config, error) {
 	config := configFile{
 		PollInterval:   _pollIntervalInSecs,
 		ReportInterval: _reportIntervalInSecs,
-		Address:        _serverAddress,
+		Address:        "",
 		Key:            "",
 		PublicKeyPath:  "",
+		GRPCAddress:    "",
 	}
 
 	if configFilePath != "" {
@@ -124,12 +134,17 @@ func NewConfig() (*Config, error) {
 		config.PublicKeyPath = *publicKeyPath
 	}
 
+	if *grpcAddress != "" {
+		config.GRPCAddress = *grpcAddress
+	}
+
 	pollDuration := time.Duration(getEnvInt("POLL_INTERVAL", config.PollInterval)) * time.Second
 	reportDuration := time.Duration(getEnvInt("REPORT_INTERVAL", config.ReportInterval)) * time.Second
 
-	return &Config{
+	configuration := &Config{
 		Server: ServerConfig{
-			Address: getEnv("ADDRESS", config.Address),
+			Address:     getEnv("ADDRESS", config.Address),
+			GRPCAddress: getEnv("GRPC_ADDRESS", config.GRPCAddress),
 		},
 		Agent: SelfConfig{
 			PollInterval:   pollDuration,
@@ -137,7 +152,17 @@ func NewConfig() (*Config, error) {
 			Key:            getEnv("KEY", config.Key),
 			PublicKeyPath:  getEnv("CRYPTO_KEY", config.PublicKeyPath),
 		},
-	}, nil
+	}
+
+	if configuration.Server.Address == "" && configuration.Server.GRPCAddress == "" {
+		return nil, errors.New("no server address specified")
+	}
+
+	if configuration.Server.Address != "" && configuration.Server.GRPCAddress != "" {
+		return nil, errors.New("cannot specify both server address and gRPC address")
+	}
+
+	return configuration, nil
 }
 
 func readConfig(configPath string, config *configFile) error {

@@ -31,12 +31,14 @@ func TestAgent(t *testing.T) {
 
 	client := resty.NewWithClient(server.Client())
 
-	agent, err := New(client, config)
+	agent, err := New(config)
 	require.NoError(t, err)
+
+	agent.SetRESTClient(client)
 
 	agent.poll()
 
-	agent.report()
+	agent.reportREST()
 
 	assert.Equal(t, 1, metricCounter)
 }

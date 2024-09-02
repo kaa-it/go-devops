@@ -4,21 +4,14 @@
 package agent
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
-	"crypto/hmac"
-	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
 	"crypto/x509"
-	"encoding/base64"
-	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"google.golang.org/grpc"
 	"log"
 	math "math/rand"
-	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
@@ -30,26 +23,23 @@ import (
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
 
-	"github.com/kaa-it/go-devops/internal/api"
-)
-
-const (
-	_requestTimeout = 5 * time.Second
+	pb "github.com/kaa-it/go-devops/internal/proto"
 )
 
 // Agent describes metric agent.
 type Agent struct {
-	storage   *Storage
-	config    *Config
-	client    *resty.Client
-	publicKey *rsa.PublicKey
+	storage    *Storage
+	config     *Config
+	client     *resty.Client
+	grpcClient pb.MetricsClient
+	grpcConn   *grpc.ClientConn
+	publicKey  *rsa.PublicKey
 }
 
 // New creates new metric agent
 //
 // Takes client to connect to metric server and config with total configuration of agent.
-func New(client *resty.Client, config *Config) (*Agent, error) {
-	client.SetTimeout(_requestTimeout)
+func New(config *Config) (*Agent, error) {
 
 	var publicKey *rsa.PublicKey
 
@@ -73,17 +63,39 @@ func New(client *resty.Client, config *Config) (*Agent, error) {
 		publicKey = pubKey
 	}
 
-	return &Agent{
+	agent := &Agent{
 		storage:   NewStorage(),
 		config:    config,
-		client:    client,
 		publicKey: publicKey,
-	}, nil
+	}
+
+	if config.Server.Address != "" {
+		if err := agent.initREST(); err != nil {
+			return nil, err
+		}
+	}
+
+	if config.Server.GRPCAddress != "" {
+		if err := agent.initGRPC(); err != nil {
+			return nil, err
+		}
+	}
+
+	return agent, nil
+}
+
+// SetRESTClient allows to set custom REST client
+func (a *Agent) SetRESTClient(client *resty.Client) {
+	a.client = client
 }
 
 // Run runs metric agent and control its lifecycle.
 func (a *Agent) Run() {
 	log.Println("Agent started")
+
+	if a.config.Server.GRPCAddress != "" {
+		defer a.grpcConn.Close()
+	}
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
@@ -149,7 +161,13 @@ func (a *Agent) runReporter(ctx context.Context, wg *sync.WaitGroup) {
 			wg.Done()
 			return
 		case <-reportTicker.C:
-			a.report()
+			if a.config.Server.Address != "" {
+				a.reportREST()
+			}
+
+			if a.config.Server.GRPCAddress != "" {
+				a.reportGRPC()
+			}
 		}
 	}
 }
@@ -202,133 +220,4 @@ func (a *Agent) additionalPoll() {
 	a.storage.UpdateGauge("CPUutilization1", cpu[0])
 
 	log.Println("Additional poll done")
-}
-
-func (a *Agent) report() {
-	var metrics []api.Metrics
-	a.storage.ForEachGauge(func(key string, value float64) {
-		metrics = a.applyGauge(key, value, metrics)
-	})
-
-	a.storage.ForEachCounter(func(key string, value int64) {
-		metrics = a.applyCounter(key, value, metrics)
-
-		// Subtract sent value to take into account
-		// possible counter updates after sending
-		a.storage.UpdateCounter(key, -value)
-	})
-
-	if err := a.sendMetrics(metrics); err != nil {
-		log.Println(err)
-		return
-	}
-
-	log.Println("Report done")
-}
-
-func (a *Agent) sendMetrics(metrics []api.Metrics) error {
-	req := a.client.R()
-	req.Method = http.MethodPost
-
-	url := fmt.Sprintf("http://%s/updates/", a.config.Server.Address)
-
-	req.URL = url
-
-	if a.publicKey != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-
-	req.Header.Set("Content-Encoding", "gzip")
-
-	buf := bytes.NewBuffer(nil)
-	zw := gzip.NewWriter(buf)
-
-	enc := json.NewEncoder(zw)
-	if err := enc.Encode(metrics); err != nil {
-		return fmt.Errorf("failed to encode metric for %s: %w", url, err)
-	}
-
-	if err := zw.Close(); err != nil {
-		return fmt.Errorf("failed to close gzip writer: %w", err)
-	}
-
-	var body []byte
-
-	if a.publicKey == nil {
-		body = buf.Bytes()
-	} else {
-		var err error
-		body, err = a.encrypt(buf)
-		if err != nil {
-			return fmt.Errorf("failed to encrypt message: %w", err)
-		}
-	}
-
-	req.SetBody(body)
-
-	if len(a.config.Agent.Key) > 0 {
-		req.Header.Set("Hash", a.calculateHash(body))
-	}
-
-	resp, err := req.Send()
-	if err != nil {
-		return fmt.Errorf("failed to send request for %s: %w", url, err)
-	}
-
-	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("received status code %d for %s", resp.StatusCode(), url)
-	}
-
-	return nil
-}
-
-func (a *Agent) encrypt(buf *bytes.Buffer) ([]byte, error) {
-	encrypted := make([]byte, 0, buf.Len())
-
-	step := a.publicKey.Size() - 11
-	total := buf.Len()
-	msg := buf.Bytes()
-
-	for start := 0; start < total; start += step {
-		finish := start + step
-		if finish > total {
-			finish = total
-		}
-
-		cipher, err := rsa.EncryptPKCS1v15(rand.Reader, a.publicKey, msg[start:finish])
-		if err != nil {
-			return nil, err
-		}
-
-		encrypted = append(encrypted, cipher...)
-	}
-
-	return encrypted, nil
-}
-
-func (a *Agent) calculateHash(msg []byte) string {
-	h := hmac.New(sha256.New, []byte(a.config.Agent.Key))
-	h.Write(msg)
-
-	return base64.StdEncoding.EncodeToString(h.Sum(nil))
-}
-
-func (a *Agent) applyGauge(name string, value float64, metrics []api.Metrics) []api.Metrics {
-	m := api.Metrics{
-		ID:    name,
-		MType: api.GaugeType,
-		Value: &value,
-	}
-
-	return append(metrics, m)
-}
-
-func (a *Agent) applyCounter(name string, value int64, metrics []api.Metrics) []api.Metrics {
-	m := api.Metrics{
-		ID:    name,
-		MType: api.CounterType,
-		Delta: &value,
-	}
-
-	return append(metrics, m)
 }

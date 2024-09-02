@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/kaa-it/go-devops/internal/server/trusted"
+
 	"github.com/go-chi/chi/v5"
 
 	"github.com/kaa-it/go-devops/internal/api"
@@ -33,12 +35,12 @@ func NewHandler(a viewing.Service, l Logger) *Handler {
 }
 
 // Route creates router for all routes controlled by the package
-func (h *Handler) Route() *chi.Mux {
+func (h *Handler) Route(trustedSubnet string) *chi.Mux {
 	mux := chi.NewRouter()
 
-	mux.Get("/", h.l.RequestLogger(gzip.Middleware(h.home)))
-	mux.Post("/value/", h.l.RequestLogger(gzip.Middleware(h.valueJSON)))
-	mux.Get("/value/{category}/{name}", h.l.RequestLogger(h.value))
+	mux.Get("/", h.l.RequestLogger(trusted.Middleware(trustedSubnet, gzip.Middleware(h.home))))
+	mux.Post("/value/", h.l.RequestLogger(trusted.Middleware(trustedSubnet, gzip.Middleware(h.valueJSON))))
+	mux.Get("/value/{category}/{name}", h.l.RequestLogger(trusted.Middleware(trustedSubnet, h.value)))
 
 	return mux
 }
