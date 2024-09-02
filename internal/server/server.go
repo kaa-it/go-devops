@@ -108,7 +108,7 @@ func (s *Server) Run() {
 
 	var wg sync.WaitGroup
 
-	wg.Add(3)
+	wg.Add(2)
 
 	go func() {
 		defer wg.Done()
@@ -118,13 +118,17 @@ func (s *Server) Run() {
 		}
 	}()
 
-	go func() {
-		defer wg.Done()
+	if s.config.Server.GRPCAddress != "" {
+		wg.Add(1)
 
-		if err = grpcServer.Run(":3200"); err != nil {
-			log.Error(fmt.Sprintf("grpc server failed: %s", err.Error()))
-		}
-	}()
+		go func() {
+			defer wg.Done()
+
+			if err = grpcServer.Run(s.config.Server.GRPCAddress); err != nil {
+				log.Error(fmt.Sprintf("grpc server failed: %s", err.Error()))
+			}
+		}()
+	}
 
 	go func() {
 		<-c
@@ -143,7 +147,9 @@ func (s *Server) Run() {
 			log.Error(err.Error())
 		}
 
-		grpcServer.Stop()
+		if s.config.Server.GRPCAddress != "" {
+			grpcServer.Stop()
+		}
 
 		wg.Done()
 	}()
